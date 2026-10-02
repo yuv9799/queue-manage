@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import { createApp } from './app.js';
 import { initSocket } from './sockets/queueSocket.js';
+import { corsOrigins } from './config/cors.js';
 
 dotenv.config();
 
@@ -10,7 +11,11 @@ const PORT = process.env.PORT || 8080;
 const app = createApp();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: {
+    origin: corsOrigins(),
+    methods: ['GET', 'POST'],
+    credentials: false,
+  },
 });
 
 app.set('io', io);

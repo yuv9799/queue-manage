@@ -20,13 +20,17 @@ export default function LiveBoard() {
   const [departments, setDepartments] = useState([]);
   const [filterDept, setFilterDept] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
       const d = await api.live();
       setData(d.areas);
-    } catch {
-      /* keep last data */
+      setError(null);
+    } catch (e) {
+      // Do NOT treat an API failure as an empty queue. Surface the real error so
+      // the user knows the live service is unreachable rather than "no activity".
+      setError(e.message || 'Unable to connect to the queue service.');
     } finally {
       setLoading(false);
     }
@@ -74,6 +78,15 @@ export default function LiveBoard() {
           {[...Array(3)].map((_, i) => (
             <div key={i} className="card space-y-3"><div className="skeleton h-8" /><div className="skeleton h-24" /><div className="skeleton" /></div>
           ))}
+        </div>
+      ) : error ? (
+        <div className="rounded-xl bg-rose-50 p-6 text-center text-rose-700">
+          <p className="text-2xl" aria-hidden="true">⚠️</p>
+          <p className="mt-1 text-sm font-semibold">
+            Unable to connect to the queue service. Please try again.
+          </p>
+          {error !== 'Request failed (401)' ? <p className="mt-0.5 text-xs text-rose-400">{error}</p> : null}
+          <button className="btn-secondary mt-3" onClick={refresh}>Retry Connection</button>
         </div>
       ) : filtered.length === 0 ? (
         <p className="text-slate-500">No active {filterDept ? 'queues for this department' : 'queues'} right now.</p>

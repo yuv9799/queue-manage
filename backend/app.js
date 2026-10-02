@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import { migrate } from './config/db.js';
+import { corsOptions } from './config/cors.js';
 
 import auth from './routes/auth.js';
 import departments from './routes/departments.js';
@@ -26,7 +27,7 @@ export function createApp() {
   const app = express();
   app.set('io', null);
 
-  app.use(cors());
+  app.use(cors(corsOptions()));
   app.use(express.json({ limit: '1mb' }));
   app.use(morgan('dev'));
 

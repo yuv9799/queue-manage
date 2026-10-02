@@ -1,6 +1,19 @@
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// API base URL.
+// - Local dev: uses VITE_API_URL if set, otherwise the dev backend on localhost.
+// - Production: MUST set VITE_API_URL at build time to the deployed backend URL.
+//   (GitHub Pages is static-only and cannot host the Express backend.)
+const CONFIGURED_BASE = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const IS_DEV = import.meta.env.DEV === true;
+const BASE = CONFIGURED_BASE || (IS_DEV ? 'http://localhost:8080' : null);
 
 async function request(path, { method = 'GET', body, token } = {}) {
+  if (!BASE) {
+    const err = new Error(
+      'Backend API is not configured. Set VITE_API_URL at build time to your deployed backend URL.'
+    );
+    err.status = 0;
+    throw err;
+  }
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, {
