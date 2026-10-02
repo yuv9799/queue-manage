@@ -3,19 +3,35 @@ import { api } from './api.js';
 
 let socket = null;
 
+// When the API base isn't configured (e.g. a production build made without
+// VITE_API_URL) we can't open a real-time connection. Return a harmless,
+// NON-NULL stub so every subscriber API (.on/.off/.emit/.once) stays callable.
+// This guarantees a missing backend can NEVER crash the React tree — it only
+// disables live events, while the app shell still renders (REST shows a
+// connection error). Never return null from getSocket().
+function createNoopSocket() {
+  return {
+    on() { return this; },
+    once() { return this; },
+    off() { return this; },
+    emit() { return this; },
+    removeAllListeners() { return this; },
+    close() {},
+    connected: false,
+  };
+}
+
 export function getSocket() {
-  // No socket when the API base isn't configured (e.g. production without
-  // VITE_API_URL): real-time falls back to the REST polling already in pages.
-  if (!api.BASE) return null;
   if (!socket) {
-    socket = io(api.BASE, { transports: ['websocket', 'polling'] });
+    socket = api.BASE
+      ? io(api.BASE, { transports: ['websocket', 'polling'] })
+      : createNoopSocket();
   }
   return socket;
 }
 
 export function subscribeAll(cb) {
   const s = getSocket();
-  if (!s) return () => {};
   s.emit('subscribe:all');
   s.on('token:updated', cb);
   s.on('queue:updated', cb);
@@ -28,7 +44,6 @@ export function subscribeAll(cb) {
 // Staff Control Center real-time subscription.
 export function subscribeStaff(cb) {
   const s = getSocket();
-  if (!s) return () => {};
   s.emit('subscribe:staff');
   s.on('staff:update', cb);
   s.on('staff:activity', cb);
