@@ -7,10 +7,17 @@ import { corsOrigins } from './config/cors.js';
 
 dotenv.config();
 
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT) || 8080;
+// Bind all interfaces so container/host networking works. Most hosts inject PORT.
+const HOST = process.env.HOST || '0.0.0.0';
+
 const app = createApp();
 const server = http.createServer(app);
 const io = new Server(server, {
+  serveClient: false, // we don't serve the socket.io client bundle
+  pingTimeout: 20000,
+  pingInterval: 25000,
+  connectTimeout: 10000,
   cors: {
     origin: corsOrigins(),
     methods: ['GET', 'POST'],
@@ -21,9 +28,9 @@ const io = new Server(server, {
 app.set('io', io);
 initSocket(io);
 
-server.listen(PORT, () => {
-  console.log(`\n  KIMS Queue backend running on http://localhost:${PORT}`);
-  console.log(`  Health check: http://localhost:${PORT}/health\n`);
+server.listen(PORT, HOST, () => {
+  console.log(`\n  KIMS Queue backend listening on ${HOST}:${PORT}`);
+  console.log(`  Health check: GET /health\n`);
 });
 
 export { app, server, io };

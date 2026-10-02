@@ -26,6 +26,9 @@ migrate();
 export function createApp() {
   const app = express();
   app.set('io', null);
+  // Behind an HTTPS reverse proxy (Render, NGINX, Cloudflare, etc.) set
+  // TRUST_PROXY=1 so req.protocol / req.ip reflect the real client.
+  app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
 
   app.use(cors(corsOptions()));
   app.use(express.json({ limit: '1mb' }));
