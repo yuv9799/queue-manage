@@ -200,23 +200,30 @@ Status:
 
 No new application fixes have been made after synchronizing with upstream.
 
-### Bug 2 — GET /stats/overview requires auth, public Home page stats always show 0
+### Bug 3 — Public TokenKiosk doctor lookup uses protected /doctors endpoint
 
-**Issue:** `GET /stats/overview` returns 401 to public callers (`StatsSection.jsx`, `LiveQueueCard.jsx`) on the Home page, causing stats to silently degrade to 0.
+**Issue:** TokenKiosk on the public Home page called `api.doctors({ departmentId, active: true })` without any auth token → 401 → the doctor dropdown silently stayed empty. The public `/doctors/public` endpoint existed for exactly this purpose but was never wired into the frontend.
 
-**Root Cause:** Route used `requireAuth` but public callers call without passing any auth token. The `optionalAuth` middleware is already available and is the established pattern for public aggregate endpoints.
+**Root Cause:** Public component used the auth-protected `/doctors` endpoint. Additionally, `/doctors/public` returned full `withWorkload()` data, which includes `currentToken.patient_name` and `nextPatients[].patient_name` — a patient-privacy leak on a public route.
 
-**Resolution:** Changed `requireAuth` → `optionalAuth` on the `GET /stats/overview` route in `backend/routes/stats.js`. The `optionalAuth` middleware attaches `req.user` when a token is present but never rejects unauthenticated requests. No PHI or sensitive data is exposed — `Stats.overview()` returns only aggregate counts.
+**Resolution:**
+- Added `doctorsPublic(params)` method to `frontend/src/services/api.js` calling `GET /doctors/public` (no token).
+- Switched `TokenKiosk.jsx` from `api.doctors(...)` to `api.doctorsPublic({ departmentId })`.
+- Sanitized `/doctors/public` in `backend/routes/doctors.js`: strips `currentToken` and `nextPatients` from each doctor before responding, eliminating patient-name exposure while preserving doctor name, specialization, status, and waiting counts.
+- The authenticated `/doctors` endpoint (used by StaffConsole) is unchanged and still returns full workload data for staff.
 
 **Files Changed:**
-- `backend/routes/stats.js` — import updated, `/overview` route middleware changed
-- `backend/tests/queue.test.js` — 2 targeted tests added
+- `backend/routes/doctors.js` — patient-name sanitization added to `/doctors/public` route
+- `frontend/src/services/api.js` — `doctorsPublic()` method added
+- `frontend/src/components/TokenKiosk.jsx` — call switched to `doctorsPublic`
+- `backend/tests/queue.test.js` — 4 targeted tests added
+- `backend/tests/api.test.js` — updated `protected route requires auth` test which asserted `/stats/overview` returns 401; that behavior was intentionally changed to public access in Bug 2, so the test was updated to expect 200
 
 **Verification:**
-- `node --test tests/queue.test.js` → 17/17 pass
-- curl unauthenticated `GET /stats/overview` → 200 with valid overview data
-- curl authenticated → 200
-- other stats routes (hourly, by-department) still require auth (401)
+- `node --test` → 41/41 pass (35 pre-existing + 4 new doctor tests + 1 api.test.js + 1 stats)
+- curl unauthenticated `GET /doctors/public` → 200, sanitized (no `patient_name`, no `currentToken`, no `nextPatients`)
+- curl unauthenticated `GET /doctors` → 401 (auth boundary preserved)
+- authenticated `GET /doctors` → 200 with full workload data (staff flow unaffected)
 
 **Status:** FIXED (2026-10-03)
 

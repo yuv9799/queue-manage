@@ -68,9 +68,9 @@ test('login rejects bad credentials', async () => {
   assert.equal(res.status, 401);
 });
 
-test('protected route requires auth', async () => {
+test('stats overview accessible without auth (public endpoint)', async () => {
   const res = await request(app).get('/stats/overview');
-  assert.equal(res.status, 401);
+  assert.equal(res.status, 200);
 });
 
 test('issue a token returns token + position', async () => {

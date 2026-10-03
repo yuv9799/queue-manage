@@ -73,7 +73,7 @@ export default function TokenKiosk() {
 
     // Fetch doctors for department to show available options
     api
-      .doctors({ departmentId: deptId, active: true })
+      .doctorsPublic({ departmentId: deptId })
       .then((res) => {
         setDeptDoctors(res.doctors || []);
       })

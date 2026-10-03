@@ -105,6 +105,14 @@ export const api = {
     ).toString();
     return request(`/doctors${q ? `?${q}` : ''}`, { token });
   },
+
+  // Public doctors endpoint — no auth required, always returns active doctors without patient names
+  doctorsPublic: (params = {}) => {
+    const q = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== ''))
+    ).toString();
+    return request(`/doctors/public${q ? `?${q}` : ''}`);
+  },
   doctorById: (id, token) => request(`/doctors/${id}`, { token }),
   doctorQueue: (id, token) => request(`/doctors/${id}/queue`, { token }),
   createDoctor: (p, token) => request('/doctors', { method: 'POST', body: p, token }),

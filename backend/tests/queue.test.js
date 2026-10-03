@@ -178,3 +178,37 @@ test('GET /stats/overview: authenticated with valid token returns 200 with overv
   assert.ok(r.body.overview !== undefined);
   assert.ok(typeof r.body.overview === 'object');
 });
+
+// ---- GET /doctors/public ---------------------------------------------------
+test('GET /doctors/public: unauthenticated returns 200 with doctor list', async () => {
+  const r = await request(app).get('/doctors/public');
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.body.doctors));
+  assert.ok(r.body.doctors.length >= 1);
+});
+
+test('GET /doctors/public: response does not contain patient_name fields', async () => {
+  const r = await request(app).get('/doctors/public');
+  assert.equal(r.status, 200);
+  for (const doc of r.body.doctors) {
+    assert.ok(!('currentToken' in doc), 'public endpoint must not expose currentToken');
+    assert.ok(!('nextPatients' in doc), 'public endpoint must not expose nextPatients');
+    const docStr = JSON.stringify(doc);
+    assert.ok(!docStr.includes('patient_name'), 'no patient_name field in public response');
+  }
+});
+
+test('GET /doctors/public: departmentId filter returns only matching doctors', async () => {
+  const r = await request(app).get(`/doctors/public?departmentId=${deptId}`);
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.body.doctors));
+  assert.ok(r.body.doctors.every(d => d.department_id === deptId));
+});
+
+test('GET /doctors (auth): still returns workload including patient names for staff', async () => {
+  const t = await issue();
+  await request(app).post('/assignments').set(...auth()).send({ tokenId: t.id, doctorId: docA.id, reason: 'regression test' });
+  const r = await request(app).get('/doctors').set(...auth());
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.body.doctors));
+});

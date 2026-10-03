@@ -15,7 +15,9 @@ router.get('/public', (req, res) => {
     search: search || q,
     active: true,
   });
-  res.json({ doctors });
+  // Strip patient names from workload data — currentToken and nextPatients contain patient_name
+  const safe = doctors.map(({ currentToken, nextPatients, ...doc }) => doc);
+  res.json({ doctors: safe });
 });
 
 // GET /doctors — list doctors with optional filters (search, department, specialization, status) (Auth)
