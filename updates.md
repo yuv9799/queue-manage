@@ -200,6 +200,26 @@ Status:
 
 No new application fixes have been made after synchronizing with upstream.
 
+### Bug 2 — GET /stats/overview requires auth, public Home page stats always show 0
+
+**Issue:** `GET /stats/overview` returns 401 to public callers (`StatsSection.jsx`, `LiveQueueCard.jsx`) on the Home page, causing stats to silently degrade to 0.
+
+**Root Cause:** Route used `requireAuth` but public callers call without passing any auth token. The `optionalAuth` middleware is already available and is the established pattern for public aggregate endpoints.
+
+**Resolution:** Changed `requireAuth` → `optionalAuth` on the `GET /stats/overview` route in `backend/routes/stats.js`. The `optionalAuth` middleware attaches `req.user` when a token is present but never rejects unauthenticated requests. No PHI or sensitive data is exposed — `Stats.overview()` returns only aggregate counts.
+
+**Files Changed:**
+- `backend/routes/stats.js` — import updated, `/overview` route middleware changed
+- `backend/tests/queue.test.js` — 2 targeted tests added
+
+**Verification:**
+- `node --test tests/queue.test.js` → 17/17 pass
+- curl unauthenticated `GET /stats/overview` → 200 with valid overview data
+- curl authenticated → 200
+- other stats routes (hourly, by-department) still require auth (401)
+
+**Status:** FIXED (2026-10-03)
+
 ---
 
 ## Next Fix

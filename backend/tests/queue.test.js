@@ -163,3 +163,18 @@ test('redistribute-preview: unauthenticated returns 401', async () => {
   const r = await request(app).post('/assignments/redistribute-preview').send({ doctorId: docA.id });
   assert.equal(r.status, 401);
 });
+
+// ---- GET /stats/overview ---------------------------------------------------
+test('GET /stats/overview: unauthenticated returns 200 with overview data', async () => {
+  const r = await request(app).get('/stats/overview');
+  assert.equal(r.status, 200);
+  assert.ok(r.body.overview !== undefined);
+  assert.ok(typeof r.body.overview === 'object');
+});
+
+test('GET /stats/overview: authenticated with valid token returns 200 with overview data', async () => {
+  const r = await request(app).get('/stats/overview').set(...auth());
+  assert.equal(r.status, 200);
+  assert.ok(r.body.overview !== undefined);
+  assert.ok(typeof r.body.overview === 'object');
+});

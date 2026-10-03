@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import * as Stats from '../models/Stats.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
 // GET /stats/overview
-router.get('/overview', requireAuth, (req, res) => {
+router.get('/overview', optionalAuth, (req, res) => {
   res.json({ overview: Stats.overview() });
 });
 
