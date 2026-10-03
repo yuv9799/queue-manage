@@ -229,6 +229,34 @@ No new application fixes have been made after synchronizing with upstream.
 
 ---
 
+## Bug #4 — CORS departments failure on localhost:5174
+
+**Date:** 2026-10-03
+
+**Issue:** Frontend requests to `/departments` (and all other public endpoints) from `http://localhost:5174` were blocked at the browser CORS preflight. The backend `DEFAULT_ORIGINS` list in `config/cors.js` only included `localhost:5173`, missing `localhost:5174` — Vite's fallback port when 5173 is busy.
+
+**Root Cause:** `config/cors.js:9-14` — `DEFAULT_ORIGINS` had `http://localhost:5173` and `http://127.0.0.1:5173` but no 5174 entries. The `GET /departments` route itself is public (no auth middleware). The failure was purely at the CORS preflight — the browser blocked the request before it reached Express.
+
+**Resolution:** Added two entries to `DEFAULT_ORIGINS` in `backend/config/cors.js`:
+- `http://localhost:5174` — Vite dev server fallback port
+- `http://127.0.0.1:5174` — same, as 127.0.0.1
+
+Matching the existing 5173 pair. No other changes needed — `corsOptions()` is applied globally and Socket.io also calls `corsOrigins()`.
+
+**Files Changed:**
+- `backend/config/cors.js` — `http://localhost:5174` and `http://127.0.0.1:5174` added to `DEFAULT_ORIGINS`; comment updated
+- `backend/tests/queue.test.js` — 3 targeted CORS tests added
+
+**Verification:**
+- `node --test tests/queue.test.js` → 24/24 pass
+- `node --test tests/api.test.js` → 0 failures
+- `node --test tests/reviews.test.js` → 0 failures
+- `corsOrigins()` returns `['https://yuv9799.github.io','http://localhost:5173','http://127.0.0.1:5173','http://localhost:5174','http://127.0.0.1:5174']` (plus any `CORS_ORIGINS` env extras)
+
+**Status:** FIXED (2026-10-03)
+
+---
+
 ## Next Fix
 
 The next fix must be based on a verified remaining issue.

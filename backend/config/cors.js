@@ -1,7 +1,7 @@
 // CORS policy for the KIMS queue backend.
 //
 // GitHub Pages frontend: https://yuv9799.github.io  (project site /queue-manage/)
-// Local dev (Vite):      http://localhost:5173
+// Local dev (Vite):      http://localhost:5173 / http://localhost:5174 (fallback port)
 //
 // The backend authenticates with Bearer tokens (Authorization header), not
 // cookies, so `credentials` stays false but the origin is strictly allowlisted
@@ -10,6 +10,8 @@ const DEFAULT_ORIGINS = [
   'https://yuv9799.github.io', // production GitHub Pages frontend
   'http://localhost:5173', // Vite dev server
   'http://127.0.0.1:5173',
+  'http://localhost:5174', // Vite dev server fallback port
+  'http://127.0.0.1:5174',
   'http://localhost:3000',
 ];
 

@@ -212,3 +212,26 @@ test('GET /doctors (auth): still returns workload including patient names for st
   assert.equal(r.status, 200);
   assert.ok(Array.isArray(r.body.doctors));
 });
+
+// ---- CORS allowlist (Bug #4) -----------------------------------------------
+test('GET /departments: unauthenticated returns 200', async () => {
+  const r = await request(app).get('/departments');
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.body.departments));
+});
+
+test('corsOrigins(): includes http://localhost:5174', async () => {
+  const { corsOrigins } = await import('../config/cors.js');
+  const origins = corsOrigins();
+  assert.ok(origins.includes('http://localhost:5174'), 'localhost:5174 must be allowlisted');
+  assert.ok(origins.includes('http://127.0.0.1:5174'), '127.0.0.1:5174 must be allowlisted');
+});
+
+test('corsOrigins(): existing production and dev origins preserved', async () => {
+  const { corsOrigins } = await import('../config/cors.js');
+  const origins = corsOrigins();
+  assert.ok(origins.includes('https://yuv9799.github.io'), 'production GitHub Pages origin missing');
+  assert.ok(origins.includes('http://localhost:5173'), 'localhost:5173 dev origin missing');
+  assert.ok(origins.includes('http://127.0.0.1:5173'), '127.0.0.1:5173 dev origin missing');
+  assert.ok(origins.includes('http://localhost:3000'), 'localhost:3000 origin missing');
+});
