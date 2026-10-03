@@ -7,6 +7,7 @@ import request from 'supertest';
 // Isolated test DB (distinct from api.test.js).
 const TEST_DB = path.resolve('data', 'test-reviews.db');
 process.env.DB_PATH = TEST_DB;
+process.env.JWT_SECRET = 'test-secret-for-jwt-at-least-32-chars-long!!';
 for (const f of [TEST_DB, `${TEST_DB}-wal`, `${TEST_DB}-shm`]) {
   if (fs.existsSync(f)) fs.rmSync(f);
 }

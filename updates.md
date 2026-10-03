@@ -257,6 +257,44 @@ Matching the existing 5173 pair. No other changes needed — `corsOptions()` is 
 
 ---
 
+## Bug #5 — SEC-F1: Hardcoded JWT Secret Fallback
+
+**Date:** 2026-10-03
+
+**Issue:** `backend/middleware/auth.js:4` hardcoded a fallback for `JWT_SECRET`:
+```js
+export const JWT_SECRET = process.env.JWT_SECRET || 'kims-queue-dev-secret-change-me';
+```
+Any deployment missing the `JWT_SECRET` environment variable silently used this public-known string, producing cryptographically weak tokens that are trivial to forge.
+
+**Root Cause:** The hardcoded fallback bypasses the fail-safe expectation that required secrets must be explicitly provided. There was no guard to reject deployments running with the weak default.
+
+**Resolution:** Replaced line 4 in `backend/middleware/auth.js` with an explicit fail-fast guard:
+```js
+const secret = process.env.JWT_SECRET || '';
+if (secret.length < 32) {
+  throw new Error('JWT_SECRET must be set to a long random value (openssl rand -base64 48)');
+}
+export const JWT_SECRET = secret;
+```
+If `JWT_SECRET` is absent or shorter than 32 characters, the module throws immediately at load time with a clear message. The existing test suite (api.test.js, queue.test.js, reviews.test.js) sets `process.env.JWT_SECRET` before importing `app.js`, so they are unaffected.
+
+**Files Changed:**
+- `backend/middleware/auth.js` — hardcoded fallback replaced with fail-fast guard
+- `backend/tests/api.test.js` — `process.env.JWT_SECRET` set before importing `app.js`
+- `backend/tests/queue.test.js` — `process.env.JWT_SECRET` set before importing `app.js`
+- `backend/tests/reviews.test.js` — `process.env.JWT_SECRET` set before importing `app.js`
+- `backend/tests/auth.test.js` — new file: 3 targeted tests for the fail-fast guard (missing env, short value, valid value)
+
+**Verification:**
+- `node --test` → all pass (requires `JWT_SECRET` env var set)
+- Subprocess tests in `auth.test.js` verify throw-on-missing and throw-on-short behavior
+- The 3 existing test suites (api, queue, reviews) pass with the new guard in place
+
+**Status:** FIXED (2026-10-03)
+
+---
+
 ## Next Fix
 
 The next fix must be based on a verified remaining issue.

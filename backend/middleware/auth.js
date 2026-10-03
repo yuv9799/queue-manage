@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { findById } from '../models/User.js';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'kims-queue-dev-secret-change-me';
+const secret = process.env.JWT_SECRET || '';
+if (secret.length < 32) {
+  throw new Error('JWT_SECRET must be set to a long random value (openssl rand -base64 48)');
+}
+export const JWT_SECRET = secret;
 
 export function signToken(user) {
   return jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
