@@ -148,10 +148,27 @@ Status:
 Status:
 ⚠️ NOT YET VERIFIED
 
-#### assignments/redistribute-preview
+#### assignments/redistribute-preview — ✅ FIXED
 
-Status:
-⚠️ NOT YET VERIFIED
+**Issue:** `POST /assignments/redistribute-preview` was missing from the backend. The route handler was not wired, so clients received 404.
+
+**Root cause:** `Queue.redistributePreview(doctorId)` existed in `backend/models/Queue.js` (model layer), but no HTTP route was added in `backend/routes/assignments.js`.
+
+**Resolution:** Added route wrapper at `POST /assignments/redistribute-preview` with:
+- Input validation: `doctorId` required, must be numeric → 400 on failure
+- 409 for nonexistent doctor (delegated from model)
+- PHI sanitization: strips `currentToken` and `nextPatients` patient names from the `doctor` response object; `affected` tokens mapped to only `{id, token_number, patient_name}`
+- Uses existing `requireAuth` + `requireRole('officer', 'admin', 'reception')` guard (same pattern as other assignment routes)
+
+**Files changed:**
+- `backend/routes/assignments.js` — added route handler
+- `backend/tests/queue.test.js` — added 6 targeted tests
+
+**Verification:**
+- `node --test tests/queue.test.js` → 15/15 pass
+- curl against running backend: happy path 200, missing doctorId 400, non-numeric 400, nonexistent 409, unauthenticated 401 ✅
+
+**Status:** ✅ FIXED (2026-10-03)
 
 #### Frontend Bundle Size
 

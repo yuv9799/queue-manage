@@ -119,3 +119,47 @@ test('unauthorized role cannot list doctors', async () => {
   const r = await request(app).get('/doctors');
   assert.equal(r.status, 401);
 });
+// ---- POST /assignments/redistribute-preview -------------------------------
+test('redistribute-preview: happy path returns affected tokens and suggestions', async () => {
+  const t = await issue();
+  await request(app).post('/assignments').set(...auth()).send({ tokenId: t.id, doctorId: docA.id, reason: 'rp' });
+  const r = await request(app).post('/assignments/redistribute-preview').set(...auth()).send({ doctorId: docA.id });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.ok, true);
+  assert.ok(Array.isArray(r.body.affected));
+  assert.ok(Array.isArray(r.body.suggested));
+  const hit = r.body.affected.find((x) => x.id === t.id);
+  assert.ok(hit, 'issued token should be listed as affected');
+  assert.equal(hit.token_number, t.token_number);
+  assert.ok(r.body.suggested.some((s) => s.tokenId === t.id));
+});
+
+test('redistribute-preview: missing doctorId returns 400', async () => {
+  const r = await request(app).post('/assignments/redistribute-preview').set(...auth()).send({});
+  assert.equal(r.status, 400);
+  assert.ok(r.body.error);
+});
+
+test('redistribute-preview: non-numeric doctorId returns 400', async () => {
+  const r = await request(app).post('/assignments/redistribute-preview').set(...auth()).send({ doctorId: 'not-a-number' });
+  assert.equal(r.status, 400);
+});
+
+test('redistribute-preview: nonexistent doctor returns 409', async () => {
+  const r = await request(app).post('/assignments/redistribute-preview').set(...auth()).send({ doctorId: 999999 });
+  assert.equal(r.status, 409);
+});
+
+test('redistribute-preview: doctor with no queued tokens returns 200 with empty arrays', async () => {
+  // Use docB which no test ever assigns tokens to, so affected/suggested are always empty
+  const r = await request(app).post('/assignments/redistribute-preview').set(...auth()).send({ doctorId: docB.id });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.ok, true);
+  assert.deepEqual(r.body.affected, []);
+  assert.deepEqual(r.body.suggested, []);
+});
+
+test('redistribute-preview: unauthenticated returns 401', async () => {
+  const r = await request(app).post('/assignments/redistribute-preview').send({ doctorId: docA.id });
+  assert.equal(r.status, 401);
+});

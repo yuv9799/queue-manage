@@ -31,4 +31,25 @@ router.post('/', requireAuth, requireRole('officer', 'admin', 'reception'), (req
   res.json({ token, recommended: false, director: result });
 });
 
+// POST /assignments/redistribute-preview — dry-run: show affected tokens and suggested alternatives
+router.post('/redistribute-preview', requireAuth, requireRole('officer', 'admin', 'reception'), (req, res) => {
+  const { doctorId } = req.body || {};
+  if (!doctorId) return res.status(400).json({ error: 'doctorId is required' });
+  if (Number.isNaN(Number(doctorId))) return res.status(400).json({ error: 'doctorId must be a number' });
+  const result = Queue.redistributePreview(doctorId);
+  if (!result.ok) return res.status(409).json({ error: result.error });
+
+  // Sanitize: strip PHI from affected token list (Token.list includes patients join)
+  const affected = result.affected.map((t) => ({
+    id: t.id,
+    token_number: t.token_number,
+    patient_name: t.patient_name,
+  }));
+
+  // Sanitize: strip patient names from doctor workload (withWorkload exposes currentToken/nextPatients)
+  const { currentToken, nextPatients, ...safeDoctor } = result.doctor || {};
+
+  res.json({ ok: true, affected, suggested: result.suggested, doctor: safeDoctor });
+});
+
 export default router;
