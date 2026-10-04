@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as Patient from '../models/Patient.js';
 import * as Token from '../models/Token.js';
-import { requireAuth, requireRole, optionalAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -19,14 +19,14 @@ router.get('/search', requireAuth, requireRole('reception', 'admin', 'officer'),
 });
 
 // GET /patients/:id
-router.get('/:id', optionalAuth, (req, res) => {
+router.get('/:id', requireAuth, requireRole('reception', 'admin', 'officer', 'doctor'), (req, res) => {
   const patient = Patient.findById(req.params.id);
   if (!patient) return res.status(404).json({ error: 'Patient not found' });
   res.json({ patient });
 });
 
 // GET /patients/:id/tokens — tokens for a patient
-router.get('/:id/tokens', optionalAuth, (req, res) => {
+router.get('/:id/tokens', requireAuth, requireRole('reception', 'admin', 'officer', 'doctor'), (req, res) => {
   const patient = Patient.findById(req.params.id);
   if (!patient) return res.status(404).json({ error: 'Patient not found' });
   const tokens = Token.list({}).filter((t) => Number(t.patient_id) === Number(req.params.id));

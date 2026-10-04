@@ -166,3 +166,20 @@ test('stats overview returns numbers', async () => {
   assert.equal(typeof res.body.overview.queuedNow, 'number');
   assert.equal(typeof res.body.overview.completedToday, 'number');
 });
+
+test('patient records require staff authentication', async () => {
+  const created = await request(app)
+    .post('/patients')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Protected Patient', phone: '+919800010099' });
+  const id = created.body.patient.id;
+
+  const unauthenticated = await request(app).get(`/patients/${id}`);
+  const unauthenticatedTokens = await request(app).get(`/patients/${id}/tokens`);
+  const authenticated = await request(app).get(`/patients/${id}`).set('Authorization', `Bearer ${adminToken}`);
+
+  assert.equal(unauthenticated.status, 401);
+  assert.equal(unauthenticatedTokens.status, 401);
+  assert.equal(authenticated.status, 200);
+  assert.equal(authenticated.body.patient.name, 'Protected Patient');
+});

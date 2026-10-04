@@ -65,7 +65,7 @@ export const api = {
       body: { departmentId, areaId, patientName, preferredDoctorId, phone },
     }),
   issueTokenFull: (body, token) => request('/tokens', { method: 'POST', body, token }),
-  tokenById: (id) => request(`/tokens/${id}`),
+  tokenById: (id, signal) => request(`/tokens/${id}`, { signal }),
   tokenStatus: (id) => request(`/tokens/${id}/status`),
   tokenByNumber: (number) => request(`/tokens/by-number/${number}`),
   live: (areaId) => request(`/tokens/live${areaId ? `?areaId=${areaId}` : ''}`),

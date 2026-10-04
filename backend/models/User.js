@@ -4,12 +4,19 @@ import bcrypt from 'bcryptjs';
 // Returns user row without the password hash.
 export const PUBLIC_FIELDS = 'id, name, email, phone, role, is_demo, created_at';
 
+export function normalizePhone(phone) {
+  return String(phone || '').replace(/\D/g, '');
+}
+
 export function findByEmail(email) {
   return get(`SELECT ${PUBLIC_FIELDS}, password_hash FROM users WHERE email = ?`, email);
 }
 
 export function findByPhone(phone) {
-  return get(`SELECT ${PUBLIC_FIELDS}, password_hash FROM users WHERE phone = ?`, phone);
+  const normalized = normalizePhone(phone);
+  if (!normalized) return null;
+  return all(`SELECT ${PUBLIC_FIELDS}, password_hash FROM users WHERE phone IS NOT NULL`,)
+    .find((user) => normalizePhone(user.phone) === normalized) || null;
 }
 
 export function findById(id) {

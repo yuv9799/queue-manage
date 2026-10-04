@@ -80,6 +80,19 @@ test('auth.js loads when JWT_SECRET is >= 32 characters', async () => {
   assert.strictEqual(result.code, 0, `auth.js should load without error: ${result.stderr}`);
 });
 
+test('OTP lookup accepts equivalent phone formatting', async () => {
+  const { run } = await import('../config/db.js');
+  run(
+    'INSERT INTO users (name, email, password_hash, role, phone, is_demo) VALUES (?, ?, ?, ?, ?, ?)',
+    'Phone Demo', 'phone-demo@test.in', 'unused', 'admin', '+91 9000000001', 1
+  );
+  const spaced = await request(app).post('/auth/otp/request').send({ phone: '+91 9000000001' });
+  const compact = await request(app).post('/auth/otp/request').send({ phone: '+919000000001' });
+  assert.equal(spaced.status, 200);
+  assert.equal(compact.status, 200);
+  assert.equal(compact.body.devOtp, '123456');
+});
+
 test('CORS allows localhost Vite fallback ports', async () => {
   await new Promise((resolve, reject) => {
     try {

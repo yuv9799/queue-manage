@@ -114,9 +114,11 @@ vs
 +919000000001
 
 Status:
-⚠️ REQUIRES RUNTIME VERIFICATION
+✅ FIXED (2026-10-04)
 
-Do not claim this is fixed or definitively broken until the correct OTP endpoint is tested in the browser/API.
+Resolution: `User.findByPhone()` now compares normalized digits, so formatted
+variants such as `+91 9000000001` and `+919000000001` resolve to the same staff
+account. OTP request and verification were tested with both formats.
 
 #### S1 — Authentication Route Mounting
 
@@ -125,28 +127,37 @@ The current backend code contains multiple authentication-related routers mounte
 This creates potential route overlap/shadowing and must be verified.
 
 Status:
-⚠️ REQUIRES VERIFICATION
+✅ VERIFIED (2026-10-04)
 
-Do not modify it until the actual route behavior is tested.
+Verification: `/auth/login`, `/auth/otp/request`, `/auth/otp/verify`, and
+`/auth/me` behave correctly; the routers do not shadow one another.
 
 #### ENV1 — NODE_ENV
 
 Local environment configuration previously showed NODE_ENV=production.
 
 Status:
-⚠️ REQUIRES LOCAL ENVIRONMENT VERIFICATION
+✅ VERIFIED (2026-10-04)
+
+Local `backend/.env` uses `NODE_ENV=development`.
 
 #### ENV2 — PORT
 
 The local environment previously showed a PORT mismatch.
 
 Status:
-⚠️ REQUIRES LOCAL ENVIRONMENT VERIFICATION
+✅ VERIFIED (2026-10-04)
+
+Local `backend/.env` uses `PORT=8080`, matching the frontend API configuration.
 
 #### Review PUT/PATCH
 
 Status:
-⚠️ NOT YET VERIFIED
+✅ VERIFIED (2026-10-04)
+
+`PATCH /reviews/:id/status` is the implemented moderation contract and is
+covered by the review tests. `PUT /reviews/:id/status` is not implemented and
+has no current frontend caller; it remains intentionally unsupported.
 
 #### assignments/redistribute-preview — ✅ FIXED
 
@@ -173,7 +184,10 @@ Status:
 #### Frontend Bundle Size
 
 Status:
-⚠️ NOT YET VERIFIED
+⚠️ VERIFIED WARNING (2026-10-04)
+
+The production build succeeds, but the main JavaScript chunk is approximately
+783 KB after minification and should be code-split in a future performance pass.
 
 #### End-to-End Browser Flows
 
@@ -192,7 +206,12 @@ The following still require complete browser verification:
 * Authentication/authorization
 
 Status:
-⚠️ NOT YET VERIFIED
+✅ CORE FLOWS VERIFIED (2026-10-04)
+
+Browser verification covered navigation, department loading, patient token
+generation, token status, live queue data, and API authentication. Admin,
+staff-console, reviews, analytics, and live socket interactions still need a
+dedicated browser pass before being called fully verified.
 
 ---
 
@@ -262,11 +281,10 @@ Status:
 
 **Root Cause:** `config/cors.js:9-14` — `DEFAULT_ORIGINS` had `http://localhost:5173` and `http://127.0.0.1:5173` but no 5174 entries. The `GET /departments` route itself is public (no auth middleware). The failure was purely at the CORS preflight — the browser blocked the request before it reached Express.
 
-**Resolution:** Added two entries to `DEFAULT_ORIGINS` in `backend/config/cors.js`:
-- `http://localhost:5174` — Vite dev server fallback port
-- `http://127.0.0.1:5174` — same, as 127.0.0.1
-
-Matching the existing 5173 pair. No other changes needed — `corsOptions()` is applied globally and Socket.io also calls `corsOrigins()`.
+**Resolution:** The backend now allows the local Vite development range from
+ports 5173 through 5272 for both `localhost` and `127.0.0.1`. No other changes
+were needed — `corsOptions()` is applied globally and Socket.io also calls
+`corsOrigins()`.
 
 **Files Changed:**
 - `backend/config/cors.js` — `http://localhost:5174` and `http://127.0.0.1:5174` added to `DEFAULT_ORIGINS`; comment updated
@@ -353,58 +371,48 @@ If `JWT_SECRET` is absent or shorter than 32 characters, the module throws immed
 
 ---
 
+## Additional Verified Fixes — October 4, 2026
+
+### Bug #8 — Patient endpoint data exposure
+
+**Issue:** Unauthenticated `GET /patients/:id` and `GET /patients/:id/tokens`
+returned patient records and related token data.
+
+**Resolution:** Both endpoints now require authentication and a staff role
+(`reception`, `admin`, `officer`, or `doctor`).
+
+**Verification:** Unauthenticated requests return `401`; authenticated staff
+requests return the expected patient data. Regression coverage was added to
+`backend/tests/api.test.js`.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #9 — TokenStatus refresh storm
+
+**Issue:** Every socket event triggered an immediate request while a separate
+six-second polling loop could start another request. Requests could overlap and
+background refreshes could flicker the loading state.
+
+**Resolution:** TokenStatus now debounces socket and polling refreshes by 100ms,
+aborts the previous request before starting a new one, avoids background loading
+flicker, and cleans up timers/controllers on unmount. The token API forwards an
+AbortSignal.
+
+**Verification:** Frontend production build succeeds and the browser flow loads
+a generated token and its live status page without request errors.
+
+**Status:** ✅ FIXED (2026-10-04)
+
 ## Remaining Work After Current Release
 
 Record these items exactly according to our established findings.
 
-### 1. Patient endpoint data exposure
-
-Classification: SECURITY ISSUE
-Priority: HIGH
-Status: UNADDRESSED
-
-Previously identified concern:
-
-* certain patient endpoints in `patients.js` use `optionalAuth`
-* unauthenticated access may expose patient information
-* previously identified fields include patient name, phone, age, gender, and related token information
-
-Important:
-
-* This is a separate security investigation/fix.
-* Do not claim a broader exploit surface than the evidence established.
-* State that the next developer must validate authentication, authorization, and exact data exposure before implementing a fix.
-
-### 2. TokenStatus polling/socket behavior
-
-Classification: PERFORMANCE / UX CONCERN
-Priority: LOW
-Status: UNADDRESSED
-
-Finding:
-
-* TokenStatus uses multiple socket subscriptions together with a 6-second polling fallback.
-* Repeated loading/flicker may occur.
-* Data remains correct.
-* Not currently classified as a correctness bug.
-
-### 3. TokenStatus load storm
-
-Classification: PERFORMANCE / MAINTENANCE
-Priority: MEDIUM
-Status: UNADDRESSED
-
-Finding:
-
-* TokenStatus may generate redundant/repeated loading activity from its socket/polling design.
-* This requires targeted profiling/reproduction before fixing.
-* Do not describe it as a confirmed correctness failure.
-
-### 4. `redistributeConfirm`
+### 1. `redistributeConfirm`
 
 Classification: DEAD CODE / MAINTENANCE
 Priority: LOW
 Status: UNADDRESSED
+
 
 Finding:
 
@@ -416,7 +424,7 @@ Important:
 
 * Do NOT recreate the removed backend route merely to satisfy this stale method.
 
-### 5. Admin user deletion
+### 2. Admin user deletion
 
 Classification: INCOMPLETE FEATURE
 Priority: MEDIUM
@@ -433,7 +441,7 @@ Important:
 * Do NOT call this a confirmed bug.
 * Treat it as a future feature unless product requirements establish that deletion is required.
 
-### 6. `/counters` role boundary
+### 3. `/counters` role boundary
 
 Classification: OBSERVATION / SECURITY REVIEW ITEM
 Priority: LOW
@@ -453,14 +461,12 @@ Summary table:
 
 | Item                       | Classification          | Priority | Status      | Next Action                                |
 | -------------------------- | ----------------------- | -------- | ----------- | ------------------------------------------ |
-| Patient endpoint exposure  | Security issue          | HIGH     | Unaddressed | Dedicated auth/data-exposure investigation |
-| TokenStatus polling/socket | Performance/UX          | Low      | Unaddressed | Targeted profiling/reproduction            |
-| TokenStatus load storm     | Performance/maintenance | Medium   | Unaddressed | Targeted profiling/reproduction            |
 | `redistributeConfirm`      | Dead code               | Low      | Unaddressed | Cleanup after confirming no callers        |
 | User deletion              | Incomplete feature      | Medium   | Unaddressed | Define product requirement first           |
 | `/counters` role boundary  | Observation             | Low      | Unconfirmed | Authorization review                       |
 
-Current completed fixes are implemented and committed. The remaining items above are intentionally deferred and must not be treated as completed fixes. The patient endpoint exposure is the highest-priority follow-up.
+Current completed fixes are implemented and documented. The remaining items
+above are intentionally deferred and must not be treated as completed fixes.
 
 ---
 

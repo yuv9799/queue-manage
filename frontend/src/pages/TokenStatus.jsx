@@ -96,12 +96,20 @@ export default function TokenStatus() {
   const [number, setNumber] = useState('');
   const [status, setStatus] = useState('idle'); // idle | loading | ready | notfound | error
   const currentId = useRef(null);
+  const tokenRef = useRef(null);
+  const loadAbortRef = useRef(null);
+  const loadTimerRef = useRef(null);
   const [lastUpdated, setLastUpdated] = useState('');
 
   async function load(id) {
-    setStatus('loading');
+    if (!id) return;
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    if (!tokenRef.current) setStatus('loading');
     try {
-      const d = await api.tokenById(id);
+      const d = await api.tokenById(id, controller.signal);
+      tokenRef.current = d.token;
       setToken(d.token);
       setPosition(d.position);
       setPeopleAhead(d.peopleAhead != null ? d.peopleAhead : (d.position ? Math.max(0, Number(d.position) - 1) : 0));
@@ -111,9 +119,17 @@ export default function TokenStatus() {
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       setStatus('ready');
     } catch (e) {
+      if (e.name === 'AbortError') return;
+      tokenRef.current = null;
       setToken(null);
       setStatus(e.status === 404 ? 'notfound' : 'error');
     }
+  }
+
+  function scheduleLoad(id) {
+    if (!id) return;
+    clearTimeout(loadTimerRef.current);
+    loadTimerRef.current = setTimeout(() => load(id), 100);
   }
 
   async function search(e) {
@@ -125,6 +141,7 @@ export default function TokenStatus() {
       try {
         localStorage.setItem('kims_active_token_id', String(d.token.id));
       } catch {}
+      tokenRef.current = d.token;
       setToken(d.token);
       setPosition(d.position);
       setPeopleAhead(d.peopleAhead != null ? d.peopleAhead : (d.position ? Math.max(0, Number(d.position) - 1) : 0));
@@ -158,9 +175,9 @@ export default function TokenStatus() {
       // If event pertains to current token or queue, refresh
       if (currentId.current) {
         if (!payload?.token || String(payload.token.id) === String(currentId.current)) {
-          load(currentId.current);
+          scheduleLoad(currentId.current);
         } else {
-          load(currentId.current);
+          scheduleLoad(currentId.current);
         }
       }
     };
@@ -174,6 +191,8 @@ export default function TokenStatus() {
     s.on('doctor:status', handler);
 
     return () => {
+      clearTimeout(loadTimerRef.current);
+      loadAbortRef.current?.abort();
       s.off('token:updated', handler);
       s.off('token:called', handler);
       s.off('token:started', handler);
@@ -188,9 +207,13 @@ export default function TokenStatus() {
   // Polling fallback (6s)
   useEffect(() => {
     const t = setInterval(() => {
-      if (currentId.current) load(currentId.current);
+      if (currentId.current) scheduleLoad(currentId.current);
     }, 6000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      clearTimeout(loadTimerRef.current);
+      loadAbortRef.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
