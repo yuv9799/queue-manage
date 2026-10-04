@@ -93,12 +93,12 @@ test('OTP lookup accepts equivalent phone formatting', async () => {
   assert.equal(compact.body.devOtp, '123456');
 });
 
-test('CORS allows localhost Vite fallback ports', async () => {
+test('CORS rejects unsupported localhost ports', async () => {
   await new Promise((resolve, reject) => {
     try {
       corsOptions().origin('http://localhost:5176', (err, allowed) => {
         if (err) return reject(err);
-        assert.equal(allowed, 'http://localhost:5176');
+        assert.equal(allowed, false);
         resolve();
       });
     } catch (err) {

@@ -8,22 +8,19 @@
 // rather than wide-open `*`. Set CORS_ORIGINS in the backend env to add more.
 const DEFAULT_ORIGINS = [
   'https://yuv9799.github.io', // production GitHub Pages frontend
+  'http://localhost:5173', // Vite dev server
+  'http://127.0.0.1:5173',
+  'http://localhost:5174', // Vite fallback port
+  'http://127.0.0.1:5174',
   'http://localhost:3000',
 ];
-
-function devOrigins() {
-  const ports = Array.from({ length: 100 }, (_, i) => 5173 + i);
-  const localhost = ports.map((port) => `http://localhost:${port}`);
-  const loopback = ports.map((port) => `http://127.0.0.1:${port}`);
-  return [...localhost, ...loopback];
-}
 
 export function corsOrigins() {
   const extra = (process.env.CORS_ORIGINS || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  return [...DEFAULT_ORIGINS, ...devOrigins(), ...extra];
+  return [...DEFAULT_ORIGINS, ...extra];
 }
 
 // Express cors() options. Reflects the exact origin only when it is allowlisted

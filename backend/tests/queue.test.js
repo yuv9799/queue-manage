@@ -246,18 +246,24 @@ test('GET /departments: unauthenticated returns 200', async () => {
   assert.ok(Array.isArray(r.body.departments));
 });
 
-test('corsOrigins(): includes http://localhost:5174', async () => {
+test('corsOrigins(): allows only the supported local development origins', async () => {
   const { corsOrigins } = await import('../config/cors.js');
   const origins = corsOrigins();
+  assert.ok(origins.includes('http://localhost:5173'), 'localhost:5173 must be allowlisted');
+  assert.ok(origins.includes('http://127.0.0.1:5173'), '127.0.0.1:5173 must be allowlisted');
   assert.ok(origins.includes('http://localhost:5174'), 'localhost:5174 must be allowlisted');
   assert.ok(origins.includes('http://127.0.0.1:5174'), '127.0.0.1:5174 must be allowlisted');
+  assert.ok(!origins.includes('http://localhost:5176'), 'unrelated localhost ports must not be allowlisted');
 });
 
-test('corsOrigins(): existing production and dev origins preserved', async () => {
+test('corsOrigins(): preserves production origins and supports CORS_ORIGINS extensions', async () => {
   const { corsOrigins } = await import('../config/cors.js');
+  const previous = process.env.CORS_ORIGINS;
+  process.env.CORS_ORIGINS = 'https://internal.example.test';
   const origins = corsOrigins();
   assert.ok(origins.includes('https://yuv9799.github.io'), 'production GitHub Pages origin missing');
-  assert.ok(origins.includes('http://localhost:5173'), 'localhost:5173 dev origin missing');
-  assert.ok(origins.includes('http://127.0.0.1:5173'), '127.0.0.1:5173 dev origin missing');
   assert.ok(origins.includes('http://localhost:3000'), 'localhost:3000 origin missing');
+  assert.ok(origins.includes('https://internal.example.test'), 'CORS_ORIGINS extension missing');
+  if (previous === undefined) delete process.env.CORS_ORIGINS;
+  else process.env.CORS_ORIGINS = previous;
 });
