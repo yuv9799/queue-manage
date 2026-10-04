@@ -353,6 +353,117 @@ If `JWT_SECRET` is absent or shorter than 32 characters, the module throws immed
 
 ---
 
+## Remaining Work After Current Release
+
+Record these items exactly according to our established findings.
+
+### 1. Patient endpoint data exposure
+
+Classification: SECURITY ISSUE
+Priority: HIGH
+Status: UNADDRESSED
+
+Previously identified concern:
+
+* certain patient endpoints in `patients.js` use `optionalAuth`
+* unauthenticated access may expose patient information
+* previously identified fields include patient name, phone, age, gender, and related token information
+
+Important:
+
+* This is a separate security investigation/fix.
+* Do not claim a broader exploit surface than the evidence established.
+* State that the next developer must validate authentication, authorization, and exact data exposure before implementing a fix.
+
+### 2. TokenStatus polling/socket behavior
+
+Classification: PERFORMANCE / UX CONCERN
+Priority: LOW
+Status: UNADDRESSED
+
+Finding:
+
+* TokenStatus uses multiple socket subscriptions together with a 6-second polling fallback.
+* Repeated loading/flicker may occur.
+* Data remains correct.
+* Not currently classified as a correctness bug.
+
+### 3. TokenStatus load storm
+
+Classification: PERFORMANCE / MAINTENANCE
+Priority: MEDIUM
+Status: UNADDRESSED
+
+Finding:
+
+* TokenStatus may generate redundant/repeated loading activity from its socket/polling design.
+* This requires targeted profiling/reproduction before fixing.
+* Do not describe it as a confirmed correctness failure.
+
+### 4. `redistributeConfirm`
+
+Classification: DEAD CODE / MAINTENANCE
+Priority: LOW
+Status: UNADDRESSED
+
+Finding:
+
+* frontend `api.js` contains a `redistributeConfirm` method associated with a backend route that is not currently wired.
+* No current user-facing caller.
+* No current user impact.
+
+Important:
+
+* Do NOT recreate the removed backend route merely to satisfy this stale method.
+
+### 5. Admin user deletion
+
+Classification: INCOMPLETE FEATURE
+Priority: MEDIUM
+Status: UNADDRESSED
+
+Finding:
+
+* No `DELETE /auth/users/:id` route currently exists.
+* No delete UI currently exists.
+* Bug #7 intentionally covered user listing only.
+
+Important:
+
+* Do NOT call this a confirmed bug.
+* Treat it as a future feature unless product requirements establish that deletion is required.
+
+### 6. `/counters` role boundary
+
+Classification: OBSERVATION / SECURITY REVIEW ITEM
+Priority: LOW
+Status: UNCONFIRMED
+
+Finding:
+
+* `GET /counters` requires authentication.
+* It was previously observed without an explicit admin-only role restriction.
+
+Important:
+
+* Do NOT label this a confirmed vulnerability.
+* Review the intended authorization requirement before changing it.
+
+Summary table:
+
+| Item                       | Classification          | Priority | Status      | Next Action                                |
+| -------------------------- | ----------------------- | -------- | ----------- | ------------------------------------------ |
+| Patient endpoint exposure  | Security issue          | HIGH     | Unaddressed | Dedicated auth/data-exposure investigation |
+| TokenStatus polling/socket | Performance/UX          | Low      | Unaddressed | Targeted profiling/reproduction            |
+| TokenStatus load storm     | Performance/maintenance | Medium   | Unaddressed | Targeted profiling/reproduction            |
+| `redistributeConfirm`      | Dead code               | Low      | Unaddressed | Cleanup after confirming no callers        |
+| User deletion              | Incomplete feature      | Medium   | Unaddressed | Define product requirement first           |
+| `/counters` role boundary  | Observation             | Low      | Unconfirmed | Authorization review                       |
+
+Current completed fixes are implemented and committed. The remaining items above are intentionally deferred and must not be treated as completed fixes. The patient endpoint exposure is the highest-priority follow-up.
+
+---
+
 ## Next Fix
 
 The next fix must be based on a verified remaining issue.
