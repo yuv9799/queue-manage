@@ -38,6 +38,7 @@ export const api = {
   login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
   me: (token) => request('/auth/me', { token }),
   register: (payload, token) => request('/auth/register', { method: 'POST', body: payload, token }),
+  users: (token) => request('/auth/users', { token }),
 
   // Departments / Areas / Counters
   departments: (token, signal) => request('/departments', { token, signal }),

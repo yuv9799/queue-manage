@@ -198,7 +198,32 @@ Status:
 
 ## Fix History
 
-No new application fixes have been made after synchronizing with upstream.
+### Bug #7 — Admin ManagePanel Users table never populated
+
+**Date:** 2026-10-04
+
+**Issue:** The Users card in Admin → Manage tab has a table header (Name|Email|Role) but no table body — `<tbody>` is absent, only a static placeholder line showing seed account emails. Admin cannot see which users exist.
+
+**Root Cause:** `ManagePanel.refresh()` called `api.departments()`, `api.areas()`, and `api.counters()` but never fetched users. No `api.users()` method existed in the frontend. After creating a user via `+ Add`, `refresh()` was called but still didn't load users.
+
+**Resolution:**
+- Added `users: (token) => request('/auth/users', { token })` to `frontend/src/services/api.js`
+- Added `const [users, setUsers] = useState([])` and user fetch to `ManagePanel.refresh()` in `frontend/src/pages/Admin.jsx`
+- Added `refresh()` call after successful user creation in `addUser()`
+- Replaced the placeholder `<table>` (thead only) with a full `<tbody>` rendering `name`, `email`, and `role` for each user; empty state shows "No users yet"
+
+**Files Changed:**
+- `frontend/src/services/api.js` — added `users()` method
+- `frontend/src/pages/Admin.jsx` — added users state, refresh extension, `<tbody>` rendering, post-add refresh
+- `backend/tests/auth.test.js` — 5 targeted tests for `GET /auth/users`
+
+**Verification:**
+- `node --test backend/tests/auth.test.js` → all pass
+- `npm test` → all pass
+
+**Status:** FIXED (2026-10-03)
+
+---
 
 ### Bug 3 — Public TokenKiosk doctor lookup uses protected /doctors endpoint
 

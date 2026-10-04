@@ -132,6 +132,7 @@ function ManagePanel({ token }) {
   const [departments, setDepartments] = useState([]);
   const [areas, setAreas] = useState([]);
   const [counters, setCounters] = useState([]);
+  const [users, setUsers] = useState([]);
   const [selDept, setSelDept] = useState('');
   const [selArea, setSelArea] = useState('');
 
@@ -142,6 +143,8 @@ function ManagePanel({ token }) {
     if (a) setAreas(a.areas);
     const c = await api.counters(token).catch(() => null);
     if (c) setCounters(c.counters);
+    const u = await api.users(token).catch(() => null);
+    if (u) setUsers(u.users);
   }
 
   useEffect(() => {
@@ -200,6 +203,7 @@ function ManagePanel({ token }) {
     try {
       await api.register({ name, email, password: pwd, role }, token);
       toast.success('User created');
+      refresh();
     } catch (e) {
       toast.error(e.message);
     }
@@ -251,10 +255,19 @@ function ManagePanel({ token }) {
           <thead className="text-left text-xs text-slate-400">
             <tr><th className="py-1">Name</th><th>Email</th><th>Role</th></tr>
           </thead>
+          <tbody>
+            {users.length === 0 && (
+              <tr><td colSpan="3" className="py-2 text-xs text-slate-400">No users yet</td></tr>
+            )}
+            {users.map((u) => (
+              <tr key={u.id} className="border-t border-slate-100">
+                <td className="py-2">{u.name}</td>
+                <td className="text-slate-500">{u.email}</td>
+                <td><span className="badge">{u.role}</span></td>
+              </tr>
+            ))}
+          </tbody>
         </table>
-        <p className="mt-2 text-xs text-slate-400">
-          Staff accounts: admin@kims.in · officer@kims.in · reception@kims.in
-        </p>
       </div>
 
       <div className="card">
