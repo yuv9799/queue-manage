@@ -441,6 +441,117 @@ coverage pass in `backend/tests/auth.test.js`.
 
 **Status:** ✅ COMPLETED (2026-10-04)
 
+### Bug #12 — Token tracking by department code prefix (e.g. GM-028)
+
+**Issue:** Token lookups via `TokenStatus` or direct `/status?number=GM-028` URLs failed with 404 because the backend only queried sequential integer token numbers rather than alphanumeric department-prefixed codes.
+
+**Resolution:** Updated `Token.findByNumber` in `backend/models/Token.js` with regex extraction for department code prefixes (`GM-028`, `gm-28`) joined against the department table, with fallback to sequential number and token ID. Added query parameter support for `?number=`, `?token=`, and `?tokenNumber=` in `TokenStatus.jsx`.
+
+**Verification:** Browser automation verified lookups for both generated tokens and prefixed codes load valid queue status cards and estimated wait times.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #13 — Staff and admin dual authentication & disabled account rejection
+
+**Issue:** Staff login only exposed a phone OTP form, preventing staff and admins with email/password credentials from logging in. Additionally, disabled staff accounts were not explicitly rejected during password or JWT authentication.
+
+**Resolution:** Updated `frontend/src/pages/Login.jsx` with a tabbed interface supporting Phone (OTP) and Email & Password sign-in alongside quick demo credentials. Added explicit checks for `user.disabled` returning 403 in `backend/routes/auth.js` and `backend/middleware/auth.js`.
+
+**Verification:** Admin login authenticated with `admin@kims.in` redirects directly to `/staff`. Regression tests pass in `backend/tests/auth.test.js`.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #14 — Local development routing and Vite base path resolution
+
+**Issue:** Direct navigation or refreshing `/login`, `/admin`, or `/live` under the local development server displayed a Vite 404 fallback indicating the public base URL was configured for `/queue-manage/`.
+
+**Resolution:** Configured `frontend/vite.config.js` to dynamically set `base: command === 'build' ? '/queue-manage/' : '/'`, ensuring root-level routing in local dev while preserving GitHub Pages deployment subpaths.
+
+**Verification:** Direct browser navigation and reloads across all routes load with HTTP 200 OK.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #15 — Favicon 404 console errors and HTML encoding
+
+**Issue:** Every page visit logged a browser console 404 error attempting to load `/favicon.ico`, and `index.html` contained malformed empty icon tags alongside corrupted character sequences.
+
+**Resolution:** Generated a valid 16x16 icon in `frontend/public/favicon.ico` and cleaned `frontend/index.html` to use clean UTF-8 with an SVG medical cross icon link and title tag.
+
+**Verification:** Verified `GET /favicon.ico` returns HTTP 200 OK with `image/x-icon`, reducing browser console errors from 13 to 0.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #16 — SQLite query parameter sanitization for undefined bindings
+
+**Issue:** Optional query parameters passed as JavaScript `undefined` caused `node:sqlite` runtime binding exceptions (`TypeError: bind message error`).
+
+**Resolution:** Added `cleanParams` helper in `backend/config/db.js` that maps `undefined` values to SQL `null` across all prepared statement helper methods (`all`, `get`, `run`).
+
+**Verification:** All 59 backend integration tests pass without parameter binding errors.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #17 — Staff Console queue lifecycle controls
+
+**Issue:** Staff Console only provided "Call" and "Complete" buttons, leaving operators unable to put absent patients on hold, resume held tokens, mark no-shows, or cancel invalid tokens.
+
+**Resolution:** Implemented queue lifecycle action buttons in `frontend/src/pages/StaffConsole.jsx` for Hold, Resume Call, No-show, Skip, and Cancel, linked to their corresponding backend endpoints.
+
+**Verification:** End-to-end browser testing confirmed tokens can be transitioned through Called, Held, Resumed, and Completed states.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #18 — Staff Console header navigation links
+
+**Issue:** Authenticated staff and admins lacked navigation links in `StaffLayout.jsx`, requiring manual URL edits to switch between Staff Console, Admin Dashboard, and the public portal.
+
+**Resolution:** Added navigation links (`Staff Console`, `Admin Dashboard` for admins, `Public Site`) into `frontend/src/components/StaffLayout.jsx`.
+
+**Verification:** Browser automation verified navigation links render correctly and allow seamless transitions between `/staff` and `/admin`.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #19 — SOS emergency panel timestamp date formatting
+
+**Issue:** SQLite space-separated datetime strings rendered as `Invalid Date` in certain browser environments when directly parsed by JavaScript `Date`.
+
+**Resolution:** Added `formatDateTime` utility in `frontend/src/components/SOSPanel.jsx` to ensure clean ISO 8601 formatting before date parsing.
+
+**Verification:** SOS log entries display formatted times (`HH:MM`) without `Invalid Date`.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #20 — Emergency modal location direction retry lock
+
+**Issue:** When geolocation failed or timed out, a module-scoped boolean lock prevented users from retrying the directions action.
+
+**Resolution:** Replaced the module variable with component ref `directionBusyRef` in `frontend/src/components/EmergencyModal.jsx` and ensured it is cleared across all exit, error, and timeout paths.
+
+**Verification:** Tested geolocation error handling; directions button resets to idle state and remains clickable.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #21 — Review moderation deletion authorization restricted to admin
+
+**Issue:** Non-admin staff members were presented with a "Delete" button on patient reviews, triggering 403 Forbidden errors when clicked.
+
+**Resolution:** Updated `frontend/src/components/ReviewsPanel.jsx` to pass `isAdmin` prop to `ReviewCard` and conditionally render the Delete button only for admin accounts.
+
+**Verification:** Role-based UI check and `backend/tests/reviews.test.js` verify unauthorized roles cannot delete reviews.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Bug #22 — Global error handler status code preservation
+
+**Issue:** Client-side syntax errors (e.g., malformed JSON payloads) were trapped and returned as generic 500 Internal Server Errors with console stack traces.
+
+**Resolution:** Updated error middleware in `backend/app.js` to preserve explicit 4xx error statuses and return descriptive 400 Bad Request messages for JSON parse failures.
+
+**Verification:** API regression tests in `backend/tests/api.test.js` confirm 400 status codes for invalid payloads.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+
 ## Remaining Work After Current Release
 
 Record these items exactly according to our established findings.
