@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -65,6 +65,20 @@ export default function StaffConsole() {
   const [activity, setActivity] = useState([]);
   const [busy, setBusy] = useState(false);
 
+  // Abort controller: cancel in-flight loadData calls on re-invocation or unmount
+  const abortRef = useRef(null);
+
+  // Debounce: prevent socket events from spamming loadData (G3 rule: useRef, NOT useEffect deps)
+  const debounceTimerRef = useRef(null);
+  const debounceFnRef = useRef(null);
+
+  // Track busy state via ref so the socket callback reads the current value (not stale closure)
+  const busyRef = useRef(false);
+
+  // Keep token in a ref so _loadData always uses the current value (avoids stale closure)
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
+
   // Doctor Filters & Search
   const [docSearch, setDocSearch] = useState('');
   const [docDeptFilter, setDocDeptFilter] = useState('');
@@ -101,63 +115,89 @@ export default function StaffConsole() {
   const [tokenDeptFilter, setTokenDeptFilter] = useState('');
   const [tokenSearch, setTokenSearch] = useState('');
 
-  async function loadData() {
+  // Internal loader: aborts any previous in-flight requests before starting.
+  async function _loadData() {
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const currentToken = tokenRef.current;
     try {
-      const d = await api.staffDashboard(token);
+      const d = await api.staffDashboard(currentToken, controller.signal);
       setDash(d.summary);
       setActivity(d.activity || []);
-    } catch {}
+    } catch (e) { if (e.name !== 'AbortError') {} }
 
     try {
-      const res = await api.doctors({}, token);
+      const res = await api.doctors({}, currentToken, controller.signal);
       setDoctors(res.doctors || []);
-    } catch {}
+    } catch (e) { if (e.name !== 'AbortError') {} }
 
     try {
-      const qRes = await api.queueLive(token);
+      const qRes = await api.queueLive(currentToken, controller.signal);
       setQueues(qRes.queues || []);
-    } catch {}
+    } catch (e) { if (e.name !== 'AbortError') {} }
 
     try {
-      const unRes = await api.queueUnassigned(token);
+      const unRes = await api.queueUnassigned(currentToken, controller.signal);
       setUnassigned(unRes.tokens || []);
-    } catch {}
+    } catch (e) { if (e.name !== 'AbortError') {} }
 
     try {
-      const depRes = await api.departments(token);
+      const depRes = await api.departments(currentToken, controller.signal);
       setDepartments(depRes.departments || []);
-    } catch {}
+    } catch (e) { if (e.name !== 'AbortError') {} }
 
     try {
-      const tokRes = await api.tokens({ limit: 400 }, token);
+      const tokRes = await api.tokens({ limit: 400 }, currentToken, controller.signal);
       setAllTokens(tokRes.tokens || []);
-    } catch {}
+    } catch (e) { if (e.name !== 'AbortError') {} }
 
     try {
-      const logRes = await api.audit(100, token);
+      const logRes = await api.audit(100, currentToken, controller.signal);
       setLogs(logRes.logs || []);
-    } catch {}
+    } catch (e) { if (e.name !== 'AbortError') {} }
+  }
+
+  // Debounced entry point — always go through this so socket events don't storm loadData.
+  function debouncedLoadData() {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      debounceFnRef.current = _loadData;
+      _loadData();
+    }, 100);
+  }
+
+  // Exposed alias for manual refresh calls
+  function loadData() {
+    debouncedLoadData();
   }
 
   useEffect(() => {
-    loadData();
+    debouncedLoadData();
     const off = subscribeStaff(() => {
-      loadData();
+      if (busyRef.current) return; // don't race with an in-flight action
+      debouncedLoadData();
     });
-    return off;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      off();
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function runAction(fn, okMsg) {
     setBusy(true);
+    busyRef.current = true;
     try {
       await fn();
       if (okMsg) toast.success(okMsg);
-      await loadData();
+      debouncedLoadData();
     } catch (e) {
       toast.error(e.message);
     } finally {
       setBusy(false);
+      busyRef.current = false;
     }
   }
 

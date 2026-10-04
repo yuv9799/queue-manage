@@ -6,7 +6,7 @@ const CONFIGURED_BASE = String(import.meta.env.VITE_API_URL || '').replace(/\/+$
 const IS_DEV = import.meta.env.DEV === true;
 const BASE = CONFIGURED_BASE || (IS_DEV ? 'http://localhost:8080' : null);
 
-async function request(path, { method = 'GET', body, token } = {}) {
+async function request(path, { method = 'GET', body, token, signal } = {}) {
   if (!BASE) {
     const err = new Error(
       'Backend API is not configured. Set VITE_API_URL at build time to your deployed backend URL.'
@@ -20,6 +20,7 @@ async function request(path, { method = 'GET', body, token } = {}) {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    signal,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -39,7 +40,7 @@ export const api = {
   register: (payload, token) => request('/auth/register', { method: 'POST', body: payload, token }),
 
   // Departments / Areas / Counters
-  departments: (token) => request('/departments', { token }),
+  departments: (token, signal) => request('/departments', { token, signal }),
   createDepartment: (p, token) => request('/departments', { method: 'POST', body: p, token }),
   updateDepartment: (id, p, token) => request(`/departments/${id}`, { method: 'PUT', body: p, token }),
   deleteDepartment: (id, token) => request(`/departments/${id}`, { method: 'DELETE', token }),
@@ -67,11 +68,11 @@ export const api = {
   tokenStatus: (id) => request(`/tokens/${id}/status`),
   tokenByNumber: (number) => request(`/tokens/by-number/${number}`),
   live: (areaId) => request(`/tokens/live${areaId ? `?areaId=${areaId}` : ''}`),
-  tokens: (params = {}, token) => {
+  tokens: (params = {}, token, signal) => {
     const q = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== ''))
     ).toString();
-    return request(`/tokens${q ? `?${q}` : ''}`, { token });
+    return request(`/tokens${q ? `?${q}` : ''}`, { token, signal });
   },
   callToken: (id, counterId, token) =>
     request(`/tokens/${id}/call`, { method: 'POST', body: { counterId }, token }),
@@ -96,14 +97,14 @@ export const api = {
     request(`/tokens/${id}/assign-doctor`, { method: 'POST', body: { doctorId, reason: note }, token }),
 
   // Doctors
-  doctors: (params = {}, token) => {
+  doctors: (params = {}, token, signal) => {
     if (typeof params === 'string') {
       return request('/doctors', { token: params });
     }
     const q = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== ''))
     ).toString();
-    return request(`/doctors${q ? `?${q}` : ''}`, { token });
+    return request(`/doctors${q ? `?${q}` : ''}`, { token, signal });
   },
 
   // Public doctors endpoint — no auth required, always returns active doctors without patient names
@@ -176,8 +177,8 @@ export const api = {
   patientTokens: (id, token) => request(`/patients/${id}/tokens`, { token }),
 
   // Queues
-  queueLive: (token) => request('/queues/live', { token }),
-  queueUnassigned: (token) => request('/queues/unassigned', { token }),
+  queueLive: (token, signal) => request('/queues/live', { token, signal }),
+  queueUnassigned: (token, signal) => request('/queues/unassigned', { token, signal }),
 
   // Assignments
   assignmentRecommend: (tokenId, preferDoctorId, token) =>
@@ -189,8 +190,9 @@ export const api = {
 
   // Notifications / Audit / Dashboard
   notifications: (tokenId, token) => request(`/notifications${tokenId ? `?tokenId=${tokenId}` : ''}`, { token }),
-  audit: (limit, token) => request(`/audit${limit ? `?limit=${limit}` : ''}`, { token }),
-  staffDashboard: (token) => request('/staff/dashboard', { token }),
+  audit: (limit, token, signal) => request(`/audit${limit ? `?limit=${limit}` : ''}`, { token, signal }),
+  // Staff Control Center = Staff Dashboard
+  staffDashboard: (token, _unused, signal) => request('/staff/dashboard', { token, signal }),
 };
 
 export default api;

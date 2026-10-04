@@ -295,6 +295,39 @@ If `JWT_SECRET` is absent or shorter than 32 characters, the module throws immed
 
 ---
 
+## Bug #6 — StaffConsole race condition + load storm
+
+**Date:** 2026-10-03
+
+**Issue:** Every socket event (4 per token op) fired a full `loadData()` call — 7 sequential API calls each = 28 RPS per user action. Overlapping `loadData()` calls resolved out-of-order, briefly showing stale state. No debounce, no request cancellation, no sequence tracking.
+
+**Root Cause:** `StaffConsole.jsx` had three compounding problems:
+1. Socket events via `subscribeStaff()` called `loadData()` directly with no debounce — rapid token operations (call, serve, complete, etc.) each fire 4 events = 4 simultaneous full reloads
+2. `loadData()` had no `AbortController` — a newer request completing after an older one could overwrite state in wrong order
+3. `runAction()` called `await loadData()` (blocking, full 7-call reload) while socket events also called `loadData()` unchecked, allowing button actions and socket reloads to race
+
+**Resolution:**
+- `api.js`: Added `signal` parameter to `request()`, passed through `fetch()` options; updated `staffDashboard`, `doctors`, `departments`, `tokens`, `audit`, `queueLive`, `queueUnassigned` to accept and forward the signal
+- `StaffConsole.jsx`:
+  - Added `abortRef` (AbortController) — any new `loadData` call aborts the previous controller, cancelling in-flight requests before their state updates can race
+  - Added `debounceTimerRef` + `debouncedLoadData()` — socket events go through 100ms debounce (G3 rule: `useRef`, NOT `useEffect` deps)
+  - Added `busyRef` — socket callback reads the current busy state via ref to avoid stale closure; skips reloads during in-flight button actions
+  - Added `tokenRef` — `_loadData` always reads the current token value (avoids stale closure on token change)
+  - Refactored `runAction()` to call `debouncedLoadData()` instead of `await loadData()`, eliminating the second independent load path
+  - Added proper cleanup in `useEffect`: abort controller + clear debounce timer on unmount
+
+**Files Changed:**
+- `frontend/src/services/api.js` — added `signal` parameter to `request()` and to 7 API methods used by `loadData`
+- `frontend/src/pages/StaffConsole.jsx` — added AbortController abort guard, debounce via `useRef`, `busyRef` coordination, `tokenRef` stability, proper useEffect cleanup
+
+**Verification:**
+- `npm test` → 47/47 pass
+- Logic review: abort guard prevents out-of-order state writes; debounce collapses rapid socket events; busyRef prevents socket races with user actions; tokenRef prevents stale token usage
+
+**Status:** FIXED (2026-10-03)
+
+---
+
 ## Next Fix
 
 The next fix must be based on a verified remaining issue.
