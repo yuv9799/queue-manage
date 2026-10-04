@@ -165,6 +165,31 @@ test('redistribute-preview: unauthenticated returns 401', async () => {
   assert.equal(r.status, 401);
 });
 
+test('redistribute applies approved moves', async () => {
+  const t = await issue();
+  await request(app).post('/assignments').set(...auth()).send({ tokenId: t.id, doctorId: docA.id, reason: 'redistribute setup' });
+  const replacement = await request(app)
+    .post('/doctors')
+    .set(...auth())
+    .send({ name: 'Dr Replacement', departmentId: deptId, status: 'available' });
+  const replacementId = replacement.body.doctor.id;
+  const r = await request(app)
+    .post('/assignments/redistribute')
+    .set(...auth())
+    .send({ moves: [{ tokenId: t.id, doctorId: replacementId }], reason: 'doctor unavailable' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.results, [{ tokenId: t.id, ok: true, error: null }]);
+  const updated = await request(app).get(`/tokens/${t.id}`);
+  assert.equal(updated.body.token.doctor_id, replacementId);
+});
+
+test('redistribute validates moves and authentication', async () => {
+  const invalid = await request(app).post('/assignments/redistribute').set(...auth()).send({ moves: [{}] });
+  const unauthenticated = await request(app).post('/assignments/redistribute').send({ moves: [] });
+  assert.equal(invalid.status, 400);
+  assert.equal(unauthenticated.status, 401);
+});
+
 // ---- GET /stats/overview ---------------------------------------------------
 test('GET /stats/overview: unauthenticated returns 200 with overview data', async () => {
   const r = await request(app).get('/stats/overview');

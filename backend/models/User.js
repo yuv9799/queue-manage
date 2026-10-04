@@ -1,4 +1,4 @@
-import { get, all, run, lastInsertId } from '../config/db.js';
+import { get, all, run, inTx, lastInsertId } from '../config/db.js';
 import bcrypt from 'bcryptjs';
 
 // Returns user row without the password hash.
@@ -15,7 +15,7 @@ export function findByEmail(email) {
 export function findByPhone(phone) {
   const normalized = normalizePhone(phone);
   if (!normalized) return null;
-  return all(`SELECT ${PUBLIC_FIELDS}, password_hash FROM users WHERE phone IS NOT NULL`,)
+  return all(`SELECT ${PUBLIC_FIELDS}, password_hash FROM users WHERE phone IS NOT NULL`)
     .find((user) => normalizePhone(user.phone) === normalized) || null;
 }
 
@@ -49,6 +49,17 @@ export function setDisabled(id, disabled) {
 export function setPhone(id, phone) {
   run('UPDATE users SET phone = ? WHERE id = ?', phone, id);
   return findById(id);
+}
+
+export function remove(id) {
+  return inTx(() => {
+    const user = findById(id);
+    if (!user) return null;
+    run('UPDATE reviews SET user_id = NULL WHERE user_id = ?', id);
+    run('UPDATE sos_requests SET user_id = NULL WHERE user_id = ?', id);
+    run('DELETE FROM users WHERE id = ?', id);
+    return user;
+  });
 }
 
 export function verifyPassword(user, password) {

@@ -9,7 +9,7 @@ import ReviewAnalytics from '../components/ReviewAnalytics.jsx';
 import SOSPanel from '../components/SOSPanel.jsx';
 
 export default function Admin() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const toast = useToast();
   const [tab, setTab] = useState('overview');
   const [overview, setOverview] = useState(null);
@@ -122,12 +122,12 @@ export default function Admin() {
           <SOSPanel token={token} />
         </div>
       ) : (
-        <ManagePanel token={token} />
+        <ManagePanel token={token} currentUserId={user?.id} />
       )}
     </div>
   );
 }
-function ManagePanel({ token }) {
+function ManagePanel({ token, currentUserId }) {
   const toast = useToast();
   const [departments, setDepartments] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -199,10 +199,21 @@ function ManagePanel({ token }) {
     if (!email) return;
     const pwd = prompt('Password');
     if (!pwd) return;
-    const role = prompt('Role (admin/officer/reception)') || 'officer';
+    const role = prompt('Role (admin/officer/reception/doctor)') || 'officer';
     try {
       await api.register({ name, email, password: pwd, role }, token);
       toast.success('User created');
+      refresh();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
+  const deleteUser = async (id) => {
+    if (!window.confirm('Delete this user account?')) return;
+    try {
+      await api.deleteUser(id, token);
+      toast.success('User deleted');
       refresh();
     } catch (e) {
       toast.error(e.message);
@@ -253,17 +264,24 @@ function ManagePanel({ token }) {
         <p className="mb-3 text-xs text-slate-400">Manage staff accounts (admin/officer/reception).</p>
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-slate-400">
-            <tr><th className="py-1">Name</th><th>Email</th><th>Role</th></tr>
+            <tr><th className="py-1">Name</th><th>Email</th><th>Role</th><th>Action</th></tr>
           </thead>
           <tbody>
             {users.length === 0 && (
-              <tr><td colSpan="3" className="py-2 text-xs text-slate-400">No users yet</td></tr>
+              <tr><td colSpan="4" className="py-2 text-xs text-slate-400">No users yet</td></tr>
             )}
             {users.map((u) => (
               <tr key={u.id} className="border-t border-slate-100">
                 <td className="py-2">{u.name}</td>
                 <td className="text-slate-500">{u.email}</td>
                 <td><span className="badge">{u.role}</span></td>
+                <td className="text-right">
+                  {u.id !== currentUserId && (
+                    <button className="btn-danger !px-2 !py-1 text-xs" onClick={() => deleteUser(u.id)}>
+                      Delete
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

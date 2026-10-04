@@ -421,36 +421,35 @@ requests receive `401`. Regression coverage was added to
 ### Cleanup — Remove dead `redistributeConfirm` client method
 
 The frontend method had no callers and targeted a route that is intentionally
-not wired. It was removed without recreating the unused backend route.
+not wired. The underlying feature is now complete: the method and
+`POST /assignments/redistribute` route validate and apply approved moves.
 
-**Status:** ✅ CLEANED UP (2026-10-04)
+**Status:** ✅ COMPLETED (2026-10-04)
+
+### Bug #11 — Admin user deletion
+
+**Issue:** Admin could list and create staff accounts, but there was no way to
+delete an account from the Admin Manage panel.
+
+**Resolution:** Added `DELETE /auth/users/:id`, the frontend API method, and a
+Delete action in the Admin user table. The backend prevents self-deletion,
+deletion of the last admin, and preserves review/SOS records by clearing their
+optional user references before deletion.
+
+**Verification:** Admin deletion, self-delete protection, and full regression
+coverage pass in `backend/tests/auth.test.js`.
+
+**Status:** ✅ COMPLETED (2026-10-04)
 
 ## Remaining Work After Current Release
 
 Record these items exactly according to our established findings.
 
-### 1. Admin user deletion
-
-Classification: INCOMPLETE FEATURE
-Priority: MEDIUM
-Status: UNADDRESSED
-
-Finding:
-
-* No `DELETE /auth/users/:id` route currently exists.
-* No delete UI currently exists.
-* Bug #7 intentionally covered user listing only.
-
-Important:
-
-* Do NOT call this a confirmed bug.
-* Treat it as a future feature unless product requirements establish that deletion is required.
-
 Summary table:
 
 | Item                       | Classification          | Priority | Status      | Next Action                                |
 | -------------------------- | ----------------------- | -------- | ----------- | ------------------------------------------ |
-| User deletion              | Incomplete feature      | Medium   | Unaddressed | Define product requirement first           |
+| No remaining confirmed items | —                     | —        | Complete    | Continue normal feature work               |
 
 Current completed fixes are implemented and documented. The remaining items
 above are intentionally deferred and must not be treated as completed fixes.

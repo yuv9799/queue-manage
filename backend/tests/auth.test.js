@@ -156,3 +156,25 @@ test('GET /auth/users: returns all roles (admin, officer, reception, doctor)', a
     assert.ok(foundRoles.includes(role), `role "${role}" should appear in list`);
   }
 });
+
+test('admin can delete another user but not self', async () => {
+  const { get } = await import('../config/db.js');
+  const admin = get('SELECT id FROM users WHERE email = ?', 'admin@test-auth.in');
+  const email = `delete_${Date.now()}@test.in`;
+  const created = await request(app)
+    .post('/auth/register')
+    .set(...auth())
+    .send({ name: 'Delete Me', email, password: 'delete123', role: 'officer' });
+  assert.equal(created.status, 201);
+
+  const deleted = await request(app)
+    .delete(`/auth/users/${created.body.user.id}`)
+    .set(...auth());
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.body.ok, true);
+
+  const selfDelete = await request(app)
+    .delete(`/auth/users/${admin.id}`)
+    .set(...auth());
+  assert.equal(selfDelete.status, 400);
+});

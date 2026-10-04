@@ -39,6 +39,7 @@ export const api = {
   me: (token) => request('/auth/me', { token }),
   register: (payload, token) => request('/auth/register', { method: 'POST', body: payload, token }),
   users: (token) => request('/auth/users', { token }),
+  deleteUser: (id, token) => request(`/auth/users/${id}`, { method: 'DELETE', token }),
 
   // Departments / Areas / Counters
   departments: (token, signal) => request('/departments', { token, signal }),

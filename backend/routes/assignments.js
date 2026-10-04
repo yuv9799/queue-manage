@@ -52,4 +52,24 @@ router.post('/redistribute-preview', requireAuth, requireRole('officer', 'admin'
   res.json({ ok: true, affected, suggested: result.suggested, doctor: safeDoctor });
 });
 
+// POST /assignments/redistribute — apply approved redistribution moves
+router.post('/redistribute', requireAuth, requireRole('officer', 'admin', 'reception'), (req, res) => {
+  const { moves, reason } = req.body || {};
+  if (!Array.isArray(moves)) return res.status(400).json({ error: 'moves must be an array' });
+  if (moves.some((move) => !move || !Number.isInteger(Number(move.tokenId)) || !Number.isInteger(Number(move.doctorId)))) {
+    return res.status(400).json({ error: 'Each move requires numeric tokenId and doctorId' });
+  }
+
+  const result = Queue.redistributeConfirm({
+    moves,
+    actorId: req.user.id,
+    actorName: req.user.name,
+    reason,
+  });
+  for (const item of result.results) {
+    if (item.ok) emit(req.app, 'assignment', { tokenId: item.tokenId, redistributed: true });
+  }
+  res.json(result);
+});
+
 export default router;
