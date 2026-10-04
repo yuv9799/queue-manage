@@ -2,10 +2,12 @@ import { useEffect, useRef } from 'react';
 
 export default function Modal({ title, onClose, children, labelledBy }) {
   const panelRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -14,7 +16,7 @@ export default function Modal({ title, onClose, children, labelledBy }) {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div
