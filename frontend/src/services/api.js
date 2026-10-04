@@ -187,7 +187,6 @@ export const api = {
   assignmentCreate: (p, token) => request('/assignments', { method: 'POST', body: p, token }),
   redistributePreview: (doctorId, token) =>
     request('/assignments/redistribute-preview', { method: 'POST', body: { doctorId }, token }),
-  redistributeConfirm: (p, token) => request('/assignments/redistribute', { method: 'POST', body: p, token }),
 
   // Notifications / Audit / Dashboard
   notifications: (tokenId, token) => request(`/notifications${tokenId ? `?tokenId=${tokenId}` : ''}`, { token }),

@@ -5,12 +5,12 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, requireRole('admin'), (req, res) => {
   const areaId = req.query.areaId;
   res.json({ counters: Counter.list({ areaId }) });
 });
 
-router.get('/:id', requireAuth, (req, res) => {
+router.get('/:id', requireAuth, requireRole('admin'), (req, res) => {
   const counter = Counter.findById(req.params.id);
   if (!counter) return res.status(404).json({ error: 'Counter not found' });
   res.json({ counter });

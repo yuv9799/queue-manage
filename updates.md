@@ -403,28 +403,33 @@ a generated token and its live status page without request errors.
 
 **Status:** ✅ FIXED (2026-10-04)
 
+### Bug #10 — Counter read authorization
+
+**Issue:** Authenticated non-admin users could read `/counters` and
+`/counters/:id`, even though counter management is assigned to admins in the
+permissions document and the frontend only calls these endpoints from Admin.
+
+**Resolution:** Counter list and detail reads now require the `admin` role. CRUD
+write routes already required admin authorization.
+
+**Verification:** Admin receives `200`, officers receive `403`, and anonymous
+requests receive `401`. Regression coverage was added to
+`backend/tests/api.test.js`.
+
+**Status:** ✅ FIXED (2026-10-04)
+
+### Cleanup — Remove dead `redistributeConfirm` client method
+
+The frontend method had no callers and targeted a route that is intentionally
+not wired. It was removed without recreating the unused backend route.
+
+**Status:** ✅ CLEANED UP (2026-10-04)
+
 ## Remaining Work After Current Release
 
 Record these items exactly according to our established findings.
 
-### 1. `redistributeConfirm`
-
-Classification: DEAD CODE / MAINTENANCE
-Priority: LOW
-Status: UNADDRESSED
-
-
-Finding:
-
-* frontend `api.js` contains a `redistributeConfirm` method associated with a backend route that is not currently wired.
-* No current user-facing caller.
-* No current user impact.
-
-Important:
-
-* Do NOT recreate the removed backend route merely to satisfy this stale method.
-
-### 2. Admin user deletion
+### 1. Admin user deletion
 
 Classification: INCOMPLETE FEATURE
 Priority: MEDIUM
@@ -441,29 +446,11 @@ Important:
 * Do NOT call this a confirmed bug.
 * Treat it as a future feature unless product requirements establish that deletion is required.
 
-### 3. `/counters` role boundary
-
-Classification: OBSERVATION / SECURITY REVIEW ITEM
-Priority: LOW
-Status: UNCONFIRMED
-
-Finding:
-
-* `GET /counters` requires authentication.
-* It was previously observed without an explicit admin-only role restriction.
-
-Important:
-
-* Do NOT label this a confirmed vulnerability.
-* Review the intended authorization requirement before changing it.
-
 Summary table:
 
 | Item                       | Classification          | Priority | Status      | Next Action                                |
 | -------------------------- | ----------------------- | -------- | ----------- | ------------------------------------------ |
-| `redistributeConfirm`      | Dead code               | Low      | Unaddressed | Cleanup after confirming no callers        |
 | User deletion              | Incomplete feature      | Medium   | Unaddressed | Define product requirement first           |
-| `/counters` role boundary  | Observation             | Low      | Unconfirmed | Authorization review                       |
 
 Current completed fixes are implemented and documented. The remaining items
 above are intentionally deferred and must not be treated as completed fixes.

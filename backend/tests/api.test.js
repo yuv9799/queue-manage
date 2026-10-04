@@ -16,6 +16,7 @@ const { createApp } = await import('../app.js');
 const app = createApp();
 
 let adminToken;
+let officerToken;
 let deptId;
 let areaId;
 let counterId;
@@ -33,6 +34,12 @@ before(async () => {
   );
   const login = await request(app).post('/auth/login').send({ email: 'admin@test.in', password: 'admin123' });
   adminToken = login.body.token;
+  run(
+    'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+    'Test Officer', 'officer@test.in', bcrypt.hashSync('officer123', 10), 'officer'
+  );
+  const officerLogin = await request(app).post('/auth/login').send({ email: 'officer@test.in', password: 'officer123' });
+  officerToken = officerLogin.body.token;
 
   const dept = await request(app)
     .post('/departments').set('Authorization', `Bearer ${adminToken}`)
@@ -182,4 +189,14 @@ test('patient records require staff authentication', async () => {
   assert.equal(unauthenticatedTokens.status, 401);
   assert.equal(authenticated.status, 200);
   assert.equal(authenticated.body.patient.name, 'Protected Patient');
+});
+
+test('counter reads require admin authorization', async () => {
+  const admin = await request(app).get('/counters').set('Authorization', `Bearer ${adminToken}`);
+  const officer = await request(app).get('/counters').set('Authorization', `Bearer ${officerToken}`);
+  const unauthenticated = await request(app).get('/counters');
+
+  assert.equal(admin.status, 200);
+  assert.equal(officer.status, 403);
+  assert.equal(unauthenticated.status, 401);
 });
