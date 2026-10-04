@@ -5,6 +5,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import request from 'supertest';
+import { corsOptions } from '../config/cors.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -77,6 +78,20 @@ test('auth.js throws when JWT_SECRET is too short', async () => {
 test('auth.js loads when JWT_SECRET is >= 32 characters', async () => {
   const result = await runAuthSubprocess({ JWT_SECRET: 'a'.repeat(32) });
   assert.strictEqual(result.code, 0, `auth.js should load without error: ${result.stderr}`);
+});
+
+test('CORS allows localhost Vite fallback ports', async () => {
+  await new Promise((resolve, reject) => {
+    try {
+      corsOptions().origin('http://localhost:5176', (err, allowed) => {
+        if (err) return reject(err);
+        assert.equal(allowed, 'http://localhost:5176');
+        resolve();
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
 });
 
 // ── GET /auth/users ─────────────────────────────────────────────────────────

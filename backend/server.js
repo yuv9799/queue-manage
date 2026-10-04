@@ -1,11 +1,9 @@
+import 'dotenv/config';
 import http from 'node:http';
 import { Server } from 'socket.io';
-import dotenv from 'dotenv';
 import { createApp } from './app.js';
 import { initSocket } from './sockets/queueSocket.js';
 import { corsOrigins } from './config/cors.js';
-
-dotenv.config();
 
 const PORT = Number(process.env.PORT) || 8080;
 // Bind all interfaces so container/host networking works. Most hosts inject PORT.

@@ -12,6 +12,10 @@ Digital queue/token management for Kalinga Institute of Medical Sciences. Patien
 # 1. Install backend (DB): Node's built-in SQLite needs NO install
 cd backend && npm install
 
+# 1b. Configure the backend for local development
+cp .env.example .env
+printf '\nNODE_ENV=development\nJWT_SECRET=%s\n' "$(openssl rand -base64 48)" >> .env
+
 # 2. Install frontend
 cd .. && cd frontend && npm install
 
