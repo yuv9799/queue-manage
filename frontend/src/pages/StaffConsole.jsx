@@ -228,6 +228,12 @@ export default function StaffConsole() {
   const cancelToken = (t) =>
     runAction(() => api.cancelToken(t.id, token), `Token #${t.token_number} cancelled`);
 
+  const holdToken = (t) =>
+    runAction(() => api.holdToken(t.id, token), `Token #${t.token_number} put on hold`);
+
+  const noShowToken = (t) =>
+    runAction(() => api.tokenNoShow(t.id, token), `Token #${t.token_number} marked no-show`);
+
   const handleReassign = async () => {
     if (!reassignModalToken || !reassignDoctorId) {
       return toast.error('Please select a doctor to assign');
@@ -344,6 +350,7 @@ export default function StaffConsole() {
     const isCalled = t.status === 'called';
     const isServing = t.status === 'serving' || t.status === 'in_consultation';
     const isWaiting = t.status === 'queued';
+    const isHeld = t.status === 'held';
 
     return (
       <div className="flex flex-wrap items-center gap-1">
@@ -376,11 +383,29 @@ export default function StaffConsole() {
         )}
         {isCalled && (
           <button
+            className="rounded-lg bg-amber-500 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-600"
+            disabled={busy}
+            onClick={() => holdToken(t)}
+          >
+            ⏸️ Hold
+          </button>
+        )}
+        {isCalled && (
+          <button
             className="btn-ghost !px-2 !py-1 text-xs font-semibold"
             disabled={busy}
             onClick={() => recallToken(t)}
           >
             Recall
+          </button>
+        )}
+        {isHeld && (
+          <button
+            className="btn-primary !px-2.5 !py-1 text-xs font-bold"
+            disabled={busy}
+            onClick={() => recallToken(t)}
+          >
+            📢 Resume Call
           </button>
         )}
         {isWaiting && (
@@ -395,13 +420,32 @@ export default function StaffConsole() {
             🔄 Reassign
           </button>
         )}
-        {(isWaiting || isCalled) && (
+        {isCalled && (
+          <button
+            className="btn-ghost !px-2 !py-1 text-xs text-slate-500 hover:bg-slate-100"
+            disabled={busy}
+            onClick={() => noShowToken(t)}
+          >
+            No-show
+          </button>
+        )}
+        {(isWaiting || isCalled || isHeld) && (
           <button
             className="btn-ghost !px-2 !py-1 text-xs text-rose-600 hover:bg-rose-50"
             disabled={busy}
             onClick={() => skipToken(t)}
           >
             Skip
+          </button>
+        )}
+        {(isWaiting || isCalled || isHeld) && (
+          <button
+            className="btn-ghost !px-2 !py-1 text-xs text-slate-400 hover:text-rose-700"
+            disabled={busy}
+            onClick={() => cancelToken(t)}
+            title="Cancel Token"
+          >
+            Cancel
           </button>
         )}
       </div>

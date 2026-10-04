@@ -19,6 +19,7 @@ export function requireAuth(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = findById(payload.id);
     if (!user) return res.status(401).json({ error: 'Invalid user' });
+    if (user.disabled) return res.status(403).json({ error: 'This account is disabled' });
     req.user = user;
     next();
   } catch {

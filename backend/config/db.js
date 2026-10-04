@@ -240,14 +240,18 @@ export function migrate() {
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone)');
 }
 
+function cleanParams(params) {
+  return params.map((p) => (p === undefined ? null : p));
+}
+
 export function all(sql, ...params) {
-  return db.prepare(sql).all(...params);
+  return db.prepare(sql).all(...cleanParams(params));
 }
 export function get(sql, ...params) {
-  return db.prepare(sql).get(...params);
+  return db.prepare(sql).get(...cleanParams(params));
 }
 export function run(sql, ...params) {
-  return db.prepare(sql).run(...params);
+  return db.prepare(sql).run(...cleanParams(params));
 }
 export function lastInsertId() {
   return db.prepare('SELECT last_insert_rowid() AS id').get().id;

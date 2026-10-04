@@ -82,9 +82,39 @@ export function findById(id) {
 }
 
 export function findByNumber(number) {
-  return mapRow(
-    get(`SELECT ${TOKEN_ROW} ${JOIN} WHERE t.token_number = ? ORDER BY t.id DESC LIMIT 1`, number)
-  );
+  if (!number) return null;
+  const str = String(number).trim();
+
+  // Match department code + token number (e.g. GM-028, GM-1, ORTHO-001)
+  const match = str.match(/^([A-Za-z]+)[-\s]?(\d+)$/);
+  if (match) {
+    const deptCode = match[1].toUpperCase();
+    const tokenNum = parseInt(match[2], 10);
+    const row = get(
+      `SELECT ${TOKEN_ROW} ${JOIN} WHERE UPPER(d.code) = ? AND t.token_number = ? ORDER BY t.id DESC LIMIT 1`,
+      deptCode,
+      tokenNum
+    );
+    if (row) return mapRow(row);
+  }
+
+  // Pure number lookup (by token_number, or fallback to token id)
+  const num = parseInt(str, 10);
+  if (!isNaN(num)) {
+    const byNum = get(
+      `SELECT ${TOKEN_ROW} ${JOIN} WHERE t.token_number = ? ORDER BY t.id DESC LIMIT 1`,
+      num
+    );
+    if (byNum) return mapRow(byNum);
+
+    const byId = get(
+      `SELECT ${TOKEN_ROW} ${JOIN} WHERE t.id = ? LIMIT 1`,
+      num
+    );
+    if (byId) return mapRow(byId);
+  }
+
+  return null;
 }
 
 export function list({ status, areaId, departmentId, doctorId, limit = 500 } = {}) {

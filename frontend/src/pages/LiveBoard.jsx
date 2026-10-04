@@ -25,7 +25,7 @@ export default function LiveBoard() {
   const refresh = useCallback(async () => {
     try {
       const d = await api.live();
-      setData(d.areas);
+      setData(d?.areas || []);
       setError(null);
     } catch (e) {
       // Do NOT treat an API failure as an empty queue. Surface the real error so
@@ -37,7 +37,7 @@ export default function LiveBoard() {
   }, []);
 
   useEffect(() => {
-    api.departments().then((d) => setDepartments(d.departments)).catch(() => {});
+    api.departments().then((d) => setDepartments(d?.departments || [])).catch(() => {});
     refresh();
     const off = subscribeAll(() => refresh());
     const t = setInterval(refresh, 15000); // safety fallback
@@ -47,7 +47,7 @@ export default function LiveBoard() {
     };
   }, [refresh]);
 
-  const filtered = filterDept ? data.filter((x) => x.area.department_id === Number(filterDept)) : data;
+  const filtered = filterDept ? (data || []).filter((x) => x?.area?.department_id === Number(filterDept)) : (data || []);
 
   return (
     <div>

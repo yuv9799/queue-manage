@@ -2,10 +2,12 @@ import { get, all, run, inTx, lastInsertId } from '../config/db.js';
 import bcrypt from 'bcryptjs';
 
 // Returns user row without the password hash.
-export const PUBLIC_FIELDS = 'id, name, email, phone, role, is_demo, created_at';
+export const PUBLIC_FIELDS = 'id, name, email, phone, role, disabled, is_demo, created_at';
 
 export function normalizePhone(phone) {
-  return String(phone || '').replace(/\D/g, '');
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
 export function findByEmail(email) {

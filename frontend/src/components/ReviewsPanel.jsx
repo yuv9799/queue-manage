@@ -33,7 +33,7 @@ function timeAgo(dateStr) {
   return new Date(t).toLocaleDateString();
 }
 
-function ReviewCard({ r, moderatable, onAction }) {
+function ReviewCard({ r, moderatable, onAction, isAdmin }) {
   return (
     <div className="flex flex-col gap-2 rounded-xl border bg-white p-3.5 shadow-card" style={{ borderColor: '#E1EAF2' }}>
       <div className="flex items-center gap-2">
@@ -71,7 +71,9 @@ function ReviewCard({ r, moderatable, onAction }) {
           {r.status !== 'REJECTED' && (
             <button className="btn-warning !px-2.5 !py-1 text-xs" onClick={() => onAction(r.id, 'REJECTED')}>Reject</button>
           )}
-          <button className="btn-danger !px-2.5 !py-1 text-xs" onClick={() => onAction(r.id, 'DELETE')}>Delete</button>
+          {isAdmin && (
+            <button className="btn-danger !px-2.5 !py-1 text-xs" onClick={() => onAction(r.id, 'DELETE')}>Delete</button>
+          )}
         </div>
       )}
     </div>
@@ -114,9 +116,9 @@ export default function ReviewsPanel({ mode = 'public' }) {
     setShowCount(10);
     try {
       const depts = await api.departments().catch(() => ({ departments: [] }));
-      setDepartments(depts.departments);
+      setDepartments(depts?.departments || []);
       const s = await api.reviewSummary().catch(() => ({ summary: { average: 0, count: 0 } }));
-      setSummary(s.summary);
+      setSummary(s?.summary || { average: 0, count: 0 });
       const base = {
         type: fType || undefined,
         rating: fRating || undefined,
@@ -133,10 +135,10 @@ export default function ReviewsPanel({ mode = 'public' }) {
                       },
           token
         );
-        setReviews(d.reviews);
+        setReviews(d?.reviews || []);
       } else {
         const d = await api.reviews({ ...base, limit: 200 });
-        setReviews(d.reviews);
+        setReviews(d?.reviews || []);
       }
     } catch (e) {
       setError(e.message);
@@ -351,7 +353,7 @@ export default function ReviewsPanel({ mode = 'public' }) {
         ) : (
           <>
             {visible.map((r) => (
-              <ReviewCard key={r.id} r={r} moderatable={moderatable} onAction={moderatable ? moderate : null} />
+              <ReviewCard key={r.id} r={r} moderatable={moderatable} onAction={moderatable ? moderate : null} isAdmin={user?.role === 'admin'} />
             ))}
             {reviews.length > showCount && (
               <div className="pt-1 text-center">

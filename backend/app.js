@@ -78,8 +78,18 @@ export function createApp() {
 
   // Error handler
   app.use((err, req, res, next) => {
-    console.error('ERROR', err);
-    res.status(500).json({ error: 'Internal server error', detail: err.message });
+    const status = (typeof err.status === 'number' && err.status >= 400 && err.status < 600)
+      ? err.status
+      : (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600)
+      ? err.statusCode
+      : 500;
+    if (status === 500) {
+      console.error('ERROR', err);
+    }
+    const message = (status === 400 && err.type === 'entity.parse.failed')
+      ? 'Invalid JSON payload'
+      : (status === 500 ? 'Internal server error' : err.message);
+    res.status(status).json({ error: message, detail: err.message });
   });
 
   return app;

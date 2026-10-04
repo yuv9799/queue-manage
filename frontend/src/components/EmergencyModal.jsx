@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Modal from './Modal.jsx';
 import api from '../services/api.js';
 import { getSocket } from '../services/socket.js';
@@ -73,7 +73,7 @@ export default function EmergencyModal({ open, onClose }) {
   const [sos, setSos] = useState({ phase: 'idle', message: '', result: null });
   const [direction, setDirection] = useState({ phase: 'idle', message: '', code: null });
   const [permission, setPermission] = useState(null);
-  let directionBusy = false;
+  const directionBusyRef = useRef(false);
 
   // Reset transient flows when the modal opens.
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function EmergencyModal({ open, onClose }) {
       setSos({ phase: 'idle', message: '', result: null });
       setDirection({ phase: 'idle', message: '', code: null });
       setPermission(null);
-      directionBusy = false;
+      directionBusyRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -115,8 +115,8 @@ export default function EmergencyModal({ open, onClose }) {
 
   async function runGetDirections() {
     setPermission(null);
-    if (directionBusy) return;
-    directionBusy = true;
+    if (directionBusyRef.current) return;
+    directionBusyRef.current = true;
     setDirection({ phase: 'loading', message: '', code: null });
 
     // STEP 1 — obtain the user's REAL device GPS (never inferred/guessed).
@@ -126,7 +126,7 @@ export default function EmergencyModal({ open, onClose }) {
     } catch (e) {
       const code = e.code || 'unavailable';
       setDirection({ phase: 'error', code, message: locationErrorText(code) });
-      directionBusy = false;
+      directionBusyRef.current = false;
       return;
     }
 
@@ -151,12 +151,12 @@ export default function EmergencyModal({ open, onClose }) {
         code: 'invalid',
         message: 'We need your current location to start directions from where you are. Please allow location access and try again.',
       });
-      directionBusy = false;
+      directionBusyRef.current = false;
       return;
     }
     if (!isValidCoord(kimsDestination.latitude, kimsDestination.longitude)) {
       setDirection({ phase: 'error', code: 'invalid', message: locationErrorText('invalid') });
-      directionBusy = false;
+      directionBusyRef.current = false;
       return;
     }
     // The route must be USER -> KIMS. If the two points collapse to the same
@@ -164,7 +164,7 @@ export default function EmergencyModal({ open, onClose }) {
     if (Math.abs(userOrigin.latitude - kimsDestination.latitude) < 1e-9
         && Math.abs(userOrigin.longitude - kimsDestination.longitude) < 1e-9) {
       setDirection({ phase: 'error', code: 'invalid', message: locationErrorText('invalid') });
-      directionBusy = false;
+      directionBusyRef.current = false;
       return;
     }
 
@@ -189,7 +189,7 @@ export default function EmergencyModal({ open, onClose }) {
 
     setDirection({ phase: 'opening', message: '', code: null });
     window.open(url, '_blank', 'noopener,noreferrer');
-    setTimeout(() => { setDirection({ phase: 'idle', message: '', code: null }); directionBusy = false; }, 1600);
+    setTimeout(() => { setDirection({ phase: 'idle', message: '', code: null }); directionBusyRef.current = false; }, 1600);
   }
 
   async function runLocate() {

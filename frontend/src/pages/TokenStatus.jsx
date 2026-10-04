@@ -132,12 +132,11 @@ export default function TokenStatus() {
     loadTimerRef.current = setTimeout(() => load(id), 100);
   }
 
-  async function search(e) {
-    e.preventDefault();
-    if (!number.trim()) return;
+  async function fetchByNumber(num) {
+    if (!num || !num.trim()) return;
     setStatus('loading');
     try {
-      const d = await api.tokenByNumber(number.trim());
+      const d = await api.tokenByNumber(num.trim());
       try {
         localStorage.setItem('kims_active_token_id', String(d.token.id));
       } catch {}
@@ -156,11 +155,22 @@ export default function TokenStatus() {
     }
   }
 
-  // On mount: use ?id= if present, otherwise persisted active token.
+  async function search(e) {
+    e.preventDefault();
+    await fetchByNumber(number);
+  }
+
+  // On mount: use ?id= or ?number=/?token= if present, otherwise persisted active token.
   useEffect(() => {
     const qid = params.get('id');
+    const qnum = params.get('number') || params.get('token') || params.get('tokenNumber');
     if (qid) {
       load(qid);
+      return;
+    }
+    if (qnum) {
+      setNumber(qnum);
+      fetchByNumber(qnum);
       return;
     }
     const stored = getStoredId();

@@ -28,6 +28,7 @@ router.post('/login', (req, res) => {
   if (!user || !verifyPassword(user, password)) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
+  if (user.disabled) return res.status(403).json({ error: 'This account is disabled' });
   const { password_hash, ...safe } = user;
   res.json({ token: signToken(safe), user: safe });
 });

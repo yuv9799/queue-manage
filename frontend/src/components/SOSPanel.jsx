@@ -13,6 +13,14 @@ const STATUS_UI = {
   FAILED: { t: 'Failed', c: '#6B8198', bg: '#F1F5F9' },
 };
 
+function formatDateTime(dateStr, includeDate = false) {
+  if (!dateStr) return '—';
+  const clean = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T') + (dateStr.endsWith('Z') ? '' : 'Z');
+  const d = new Date(clean);
+  if (isNaN(d.getTime())) return dateStr;
+  return includeDate ? d.toLocaleString() : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function SOSPanel({ token }) {
   const [sosList, setSosList] = useState([]);
   const [busy, setBusy] = useState(null);
@@ -63,7 +71,7 @@ export default function SOSPanel({ token }) {
                 {sos.latitude.toFixed(5)}, {sos.longitude.toFixed(5)} · accuracy {sos.accuracy ? `${Math.round(sos.accuracy)}m` : '—'}
               </p>
               <p className="text-xs" style={{ color: '#6B8198' }}>
-                Nearest team: {sos.assigned?.name || '—'} {sos.nearestDistance ? `(${sos.nearestDistance}m)` : ''} · {new Date((sos.createdAt + 'Z').replace(' ', 'T')).toLocaleTimeString()}
+                Nearest team: {sos.assigned?.name || '—'} {sos.nearestDistance ? `(${sos.nearestDistance}m)` : ''} · {formatDateTime(sos.createdAt)}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {sos.status === 'STAFF_NOTIFIED' && <button className="btn-secondary !py-1.5 text-xs" disabled={busy} onClick={() => act(sos.id, 'acknowledge')}>Acknowledge</button>}
@@ -87,7 +95,7 @@ export default function SOSPanel({ token }) {
                 <div key={sos.id} className="flex items-center justify-between gap-2 rounded-xl border p-3" style={{ borderColor: '#E1EAF2' }}>
                   <div>
                     <p className="text-sm font-semibold" style={{ color: '#102A43' }}>{sos.sosNumber} · {sos.assigned?.name || '—'}</p>
-                    <p className="text-xs" style={{ color: '#6B8198' }}>{new Date((sos.createdAt + 'Z').replace(' ', 'T')).toLocaleString()}</p>
+                    <p className="text-xs" style={{ color: '#6B8198' }}>{formatDateTime(sos.createdAt, true)}</p>
                   </div>
                   <span className="badge" style={{ color: u.c, backgroundColor: u.bg }}>{u.t}</span>
                 </div>

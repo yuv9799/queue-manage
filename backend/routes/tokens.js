@@ -47,7 +47,14 @@ function broadcast(app, token, extra = {}) {
 
 // POST /tokens — issue a token (kiosk + staff)
 router.post('/', optionalAuth, (req, res) => {
-  const { departmentId, areaId, patientName, phone, preferredDoctorId, doctorId, priority } = req.body || {};
+  const b = req.body || {};
+  const departmentId = b.departmentId ?? b.department_id;
+  const areaId = b.areaId ?? b.area_id;
+  const patientName = b.patientName ?? b.patient_name;
+  const phone = b.phone ?? b.patient_phone ?? b.phoneNumber;
+  const preferredDoctorId = b.preferredDoctorId ?? b.preferred_doctor_id;
+  const doctorId = b.doctorId ?? b.doctor_id;
+  const priority = b.priority;
 
   if (!departmentId) {
     return res.status(400).json({ error: 'departmentId is required' });
@@ -154,7 +161,7 @@ router.get('/', optionalAuth, (req, res) => {
 
 // GET /tokens/:id/status — public status lookup alias
 router.get('/:id/status', (req, res) => {
-  const token = Token.findById(req.params.id);
+  const token = Token.findById(req.params.id) || Token.findByNumber(req.params.id);
   if (!token) return res.status(404).json({ error: 'Token not found' });
   const estimates = Queue.calculateEstimates(token);
   res.json({ token, ...estimates });
@@ -162,7 +169,7 @@ router.get('/:id/status', (req, res) => {
 
 // GET /tokens/:id — single token + dynamic queue calculations
 router.get('/:id', (req, res) => {
-  const token = Token.findById(req.params.id);
+  const token = Token.findById(req.params.id) || Token.findByNumber(req.params.id);
   if (!token) return res.status(404).json({ error: 'Token not found' });
   const estimates = Queue.calculateEstimates(token);
   res.json({ token, ...estimates });
@@ -187,7 +194,7 @@ const callHandler = (req, res) =>
   handle(req, res, () => {
     const r = Queue.doCall({
       tokenId: req.params.id,
-      counterId: req.body && req.body.counterId,
+      counterId: req.body && (req.body.counterId ?? req.body.counter_id),
       actorId: req.user.id,
       actorName: req.user.name,
     });
@@ -203,7 +210,7 @@ const recallHandler = (req, res) =>
   handle(req, res, () => {
     const r = Queue.doRecall({
       tokenId: req.params.id,
-      counterId: req.body && req.body.counterId,
+      counterId: req.body && (req.body.counterId ?? req.body.counter_id),
       actorId: req.user.id,
       actorName: req.user.name,
     });

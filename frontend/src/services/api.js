@@ -193,7 +193,7 @@ export const api = {
   notifications: (tokenId, token) => request(`/notifications${tokenId ? `?tokenId=${tokenId}` : ''}`, { token }),
   audit: (limit, token, signal) => request(`/audit${limit ? `?limit=${limit}` : ''}`, { token, signal }),
   // Staff Control Center = Staff Dashboard
-  staffDashboard: (token, _unused, signal) => request('/staff/dashboard', { token, signal }),
+  staffDashboard: (token, signal) => request('/staff/dashboard', { token, signal }),
 };
 
 export default api;

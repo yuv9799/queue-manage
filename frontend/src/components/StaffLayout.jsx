@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import KimsQueueBrand from './KimsQueueBrand.jsx';
 
@@ -20,7 +20,31 @@ export default function StaffLayout({ children }) {
           {/* Brand (clickable ->/staff dashboard, staff context) */}
           <KimsQueueBrand variant="staff" home="/staff" />
 
-          {/* User + role + logout (no patient nav) */}
+          {/* Navigation for Staff & Admin */}
+          <div className="flex items-center gap-1.5">
+            <Link
+              to="/staff"
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+            >
+              Staff Console
+            </Link>
+            {user?.role === 'admin' && (
+              <Link
+                to="/admin"
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                Admin Dashboard
+              </Link>
+            )}
+            <Link
+              to="/"
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+            >
+              Public Site
+            </Link>
+          </div>
+
+          {/* User + role + logout */}
           <div className="flex items-center gap-2">
             <span className="hidden text-sm font-medium xl:block" style={{ color: '#ffffff' }}>{user?.name}</span>
             <span className="badge bg-blue-100 text-blue-700">{role}</span>
