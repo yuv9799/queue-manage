@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: kims-queue-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    healthCheckPath: /health
+    disk:
+      name: sqlite-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DB_PATH
+        value: /app/data/queue.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false

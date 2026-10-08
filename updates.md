@@ -578,22 +578,27 @@ The next fix must be based on a verified remaining issue.
 ### Issue
 The frontend deployed to GitHub Pages at `https://yuv9799.github.io/queue-manage/` failed on every backend API request with:
 `Backend API is not configured. Set VITE_API_URL at build time to your deployed backend URL.`
-The public kiosk, department listings, live TV board (`/live`), token tracking (`/status`), reviews, and authentication (`/login`) were unable to connect to the backend, and real-time Socket.io communication was degraded to a no-op fallback.
+The public kiosk, department listings, live TV board (`/live`), token tracking (`/status`), reviews, and authentication (`/login`) were unable to connect to the backend because GitHub Pages hosts only static frontend assets, and real-time Socket.io communication was degraded to a no-op fallback.
 
 ### Root Cause
-GitHub Pages hosts only static frontend assets. In Vite applications, `import.meta.env.VITE_API_URL` is replaced at compile/build time. In the `.github/workflows/deploy.yml` workflow, the `Build frontend` step ran `npm run build` without passing `VITE_API_URL`. As a result, Vite baked an empty string into the production bundle (`const BC="".replace(/\/+$/,""),Ip=BC||null;`), evaluating `BASE` to `null`. In `frontend/src/services/api.js`, production builds deliberately refuse to fall back to localhost, causing all requests to throw when `BASE` is `null`. Furthermore, the workflow lacked build-time validation, allowing silent deployment of broken frontend bundles.
+GitHub Pages hosts only static frontend files and cannot run the Express/SQLite backend. In Vite applications, `import.meta.env.VITE_API_URL` is replaced at compile/build time. In `.github/workflows/deploy.yml`, the `Build frontend` step previously ran `npm run build` without passing `VITE_API_URL`. As a result, Vite baked an empty string into the production bundle (`const BC="".replace(/\/+$/,""),Ip=BC||null;`), evaluating `BASE` to `null`. In `frontend/src/services/api.js`, production builds deliberately refuse to fall back to localhost, causing all requests to throw when `BASE` is `null`. Furthermore, the workflow lacked build-time validation, allowing silent deployment of broken frontend bundles.
 
 ### Resolution
-1. Updated `.github/workflows/deploy.yml` to validate `VITE_API_URL` before building:
-   - Added a `Validate VITE_API_URL` step that checks `${{ vars.VITE_API_URL || secrets.VITE_API_URL }}` and fails fast with a clear error instruction if unset.
+1. **GitHub Actions Workflow Safeguard**:
+   - Added `Validate VITE_API_URL` step in `.github/workflows/deploy.yml` that checks `${{ vars.VITE_API_URL || secrets.VITE_API_URL }}` and fails fast with an explicit error annotation if unset, preventing broken silent deployments.
    - Injected `VITE_API_URL: ${{ vars.VITE_API_URL || secrets.VITE_API_URL }}` into the `Build frontend` step so Vite bakes the deployed backend URL into the production bundle.
-2. Verified backend CORS configuration in `backend/config/cors.js`: `https://yuv9799.github.io` is allowlisted.
-3. Verified client-side routing & SPA fallback: `vite.config.js` configures `base: '/queue-manage/'`, `main.jsx` sets `BrowserRouter basename`, and `copy404.mjs` generates `dist/404.html`.
-4. Verified Socket.io client configuration in `frontend/src/services/socket.js`: properly connects to `api.BASE` with websocket + polling transports.
+2. **Infrastructure-as-Code Backend Blueprint**:
+   - Added `render.yaml` at repo root defining the Render Blueprint with Docker runtime (`backend/Dockerfile`), 1GB persistent disk at `/app/data` for `queue.db`, automatic `JWT_SECRET` generation, `TRUST_PROXY=1`, and `/health` healthcheck.
+3. **Backend CORS & Socket.io Verification**:
+   - Verified `backend/config/cors.js` strictly allowlists `https://yuv9799.github.io`.
+   - Verified `frontend/src/services/socket.js` connects cleanly to `api.BASE` using websocket + polling.
+4. **Client-Side Routing & SPA Fallback**:
+   - Verified `vite.config.js` (`base: '/queue-manage/'`), `main.jsx` (`BrowserRouter basename`), and `copy404.mjs` (`dist/404.html` fallback).
 
 ### Files Changed
 - `.github/workflows/deploy.yml`: Added `Validate VITE_API_URL` guard step and passed `VITE_API_URL` in the frontend build step.
-- `updates.md`: Documented root cause, changes, validation, and manual configuration requirements.
+- `render.yaml`: Created Render Infrastructure-as-Code Blueprint for persistent backend container deployment.
+- `updates.md`: Documented root cause, configuration, validation, and deployment requirements.
 
 ### Verification
 - **Live Deployed Site Inspection**: Fetched and verified `https://yuv9799.github.io/queue-manage/` and assets (`index-B6b2H7mG.js`), confirming the exact failure point in the minified bundle (`Ip = null`).
@@ -602,10 +607,13 @@ GitHub Pages hosts only static frontend assets. In Vite applications, `import.me
 - **Backend Test Suite**: Ran full backend integration test suite (`node --test`) under Node 22; all 59 tests passed.
 - **Diff Check**: `git diff --check` executed with zero whitespace/formatting errors.
 
-### One-Time Required Setup
-To complete live frontend connectivity, the repository owner must set the backend URL as a GitHub Actions repository variable or secret:
-- **Location**: GitHub Repository -> Settings -> Secrets and variables -> Actions -> Variables (or Secrets)
-- **Name**: `VITE_API_URL`
-- **Value**: The HTTPS URL of the deployed backend (e.g., deployed via Render using `render.yaml` or `backend/Dockerfile`).
+### One-Time External Action Required
+To bring the live deployment into full operation:
+1. **Deploy Backend on Render**:
+   - In Render Dashboard (dashboard.render.com) -> **New -> Blueprint**, connect `yuv9799/queue-manage`. Render reads `render.yaml`, spins up the persistent Docker service, mounts `/app/data`, and provides a public HTTPS URL (e.g. `https://kims-queue-backend.onrender.com`).
+   - Run seed once in Render Shell: `npm run seed`.
+2. **Set GitHub Actions Repository Variable**:
+   - Set `VITE_API_URL` to your Render service URL in GitHub repository settings (Settings -> Secrets and variables -> Actions -> Variables).
+   - Re-running the GitHub Pages deployment will immediately compile and publish the working frontend against the live backend.
 
-**Status:** ✅ FIXED (2026-10-08)
+**Status:** ⏳ REPOSITORY READY / PENDING EXTERNAL BACKEND PROVISIONING (2026-10-08)
