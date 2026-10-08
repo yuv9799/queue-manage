@@ -34,9 +34,20 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Validate VITE_API_URL
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || secrets.VITE_API_URL }}
+        run: |
+          if [ -z "$VITE_API_URL" ]; then
+            echo "::error::VITE_API_URL is not set. Add it as a GitHub Actions variable or secret (Settings > Secrets and variables > Actions) pointing to your deployed backend URL."
+            exit 1
+          fi
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || secrets.VITE_API_URL }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

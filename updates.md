@@ -570,3 +570,42 @@ above are intentionally deferred and must not be treated as completed fixes.
 ## Next Fix
 
 The next fix must be based on a verified remaining issue.
+
+---
+
+## Fix #23 — GitHub Pages production deployment API URL configuration & validation
+
+### Issue
+The frontend deployed to GitHub Pages at `https://yuv9799.github.io/queue-manage/` failed on every backend API request with:
+`Backend API is not configured. Set VITE_API_URL at build time to your deployed backend URL.`
+The public kiosk, department listings, live TV board (`/live`), token tracking (`/status`), reviews, and authentication (`/login`) were unable to connect to the backend, and real-time Socket.io communication was degraded to a no-op fallback.
+
+### Root Cause
+GitHub Pages hosts only static frontend assets. In Vite applications, `import.meta.env.VITE_API_URL` is replaced at compile/build time. In the `.github/workflows/deploy.yml` workflow, the `Build frontend` step ran `npm run build` without passing `VITE_API_URL`. As a result, Vite baked an empty string into the production bundle (`const BC="".replace(/\/+$/,""),Ip=BC||null;`), evaluating `BASE` to `null`. In `frontend/src/services/api.js`, production builds deliberately refuse to fall back to localhost, causing all requests to throw when `BASE` is `null`. Furthermore, the workflow lacked build-time validation, allowing silent deployment of broken frontend bundles.
+
+### Resolution
+1. Updated `.github/workflows/deploy.yml` to validate `VITE_API_URL` before building:
+   - Added a `Validate VITE_API_URL` step that checks `${{ vars.VITE_API_URL || secrets.VITE_API_URL }}` and fails fast with a clear error instruction if unset.
+   - Injected `VITE_API_URL: ${{ vars.VITE_API_URL || secrets.VITE_API_URL }}` into the `Build frontend` step so Vite bakes the deployed backend URL into the production bundle.
+2. Verified backend CORS configuration in `backend/config/cors.js`: `https://yuv9799.github.io` is allowlisted.
+3. Verified client-side routing & SPA fallback: `vite.config.js` configures `base: '/queue-manage/'`, `main.jsx` sets `BrowserRouter basename`, and `copy404.mjs` generates `dist/404.html`.
+4. Verified Socket.io client configuration in `frontend/src/services/socket.js`: properly connects to `api.BASE` with websocket + polling transports.
+
+### Files Changed
+- `.github/workflows/deploy.yml`: Added `Validate VITE_API_URL` guard step and passed `VITE_API_URL` in the frontend build step.
+- `updates.md`: Documented root cause, changes, validation, and manual configuration requirements.
+
+### Verification
+- **Live Deployed Site Inspection**: Fetched and verified `https://yuv9799.github.io/queue-manage/` and assets (`index-B6b2H7mG.js`), confirming the exact failure point in the minified bundle (`Ip = null`).
+- **Production Build Test**: Tested `VITE_API_URL=https://kims-queue-api.example.com npm run build` locally; confirmed the bundle correctly embedded the URL and contained no localhost fallbacks.
+- **SPA Fallback Verification**: Verified `copy404.mjs` generates `dist/404.html` and direct route requests (e.g. `/live`) receive the SPA shell.
+- **Backend Test Suite**: Ran full backend integration test suite (`node --test`) under Node 22; all 59 tests passed.
+- **Diff Check**: `git diff --check` executed with zero whitespace/formatting errors.
+
+### One-Time Required Setup
+To complete live frontend connectivity, the repository owner must set the backend URL as a GitHub Actions repository variable or secret:
+- **Location**: GitHub Repository -> Settings -> Secrets and variables -> Actions -> Variables (or Secrets)
+- **Name**: `VITE_API_URL`
+- **Value**: The HTTPS URL of the deployed backend (e.g., deployed via Render using `render.yaml` or `backend/Dockerfile`).
+
+**Status:** ✅ FIXED (2026-10-08)
