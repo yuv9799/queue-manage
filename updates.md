@@ -580,6 +580,18 @@ The frontend deployed to GitHub Pages at `https://yuv9799.github.io/queue-manage
 `Backend API is not configured. Set VITE_API_URL at build time to your deployed backend URL.`
 The public kiosk, department listings, live TV board (`/live`), token tracking (`/status`), reviews, and authentication (`/login`) were unable to connect to the backend because GitHub Pages hosts only static frontend assets, and real-time Socket.io communication was degraded to a no-op fallback.
 
+### Historical Comparison with Yuvraj Deployment
+- In commits `ced565d` and `5dee272`, teammate Yuvraj established the backend deployment architecture:
+  - Docker containerization (`backend/Dockerfile`, `.dockerignore`) using Node 22-slim with built-in `node:sqlite`.
+  - CORS policy (`backend/config/cors.js`) strictly allowlisting the production GitHub Pages origin `https://yuv9799.github.io`.
+  - Fail-fast client API configuration (`frontend/src/services/api.js`) requiring `VITE_API_URL` in production builds and intentionally refusing localhost fallback.
+  - Safe noop stub in `frontend/src/services/socket.js` (commit `ca9aa9b`) to prevent React shell unmount crashes if `api.BASE` is null.
+  - Documentation in `DEPLOY_BACKEND.md` describing Render Blueprint setup and instructing to pass `VITE_API_URL: ${{ vars.VITE_API_URL }}` in GitHub Actions.
+- However, the deployment pipeline remained incomplete:
+  1. `render.yaml` was described in `DEPLOY_BACKEND.md` but never created at the repository root.
+  2. `.github/workflows/deploy.yml` was never updated with the `VITE_API_URL` environment injection or pre-build validation.
+  3. Consequently, GitHub Actions compiled the production bundle with `VITE_API_URL` unset, baking `BASE = null` into the deployed JavaScript bundle.
+
 ### Root Cause
 GitHub Pages hosts only static frontend files and cannot run the Express/SQLite backend. In Vite applications, `import.meta.env.VITE_API_URL` is replaced at compile/build time. In `.github/workflows/deploy.yml`, the `Build frontend` step previously ran `npm run build` without passing `VITE_API_URL`. As a result, Vite baked an empty string into the production bundle (`const BC="".replace(/\/+$/,""),Ip=BC||null;`), evaluating `BASE` to `null`. In `frontend/src/services/api.js`, production builds deliberately refuse to fall back to localhost, causing all requests to throw when `BASE` is `null`. Furthermore, the workflow lacked build-time validation, allowing silent deployment of broken frontend bundles.
 
@@ -598,7 +610,7 @@ GitHub Pages hosts only static frontend files and cannot run the Express/SQLite 
 ### Files Changed
 - `.github/workflows/deploy.yml`: Added `Validate VITE_API_URL` guard step and passed `VITE_API_URL` in the frontend build step.
 - `render.yaml`: Created Render Infrastructure-as-Code Blueprint for persistent backend container deployment.
-- `updates.md`: Documented root cause, configuration, validation, and deployment requirements.
+- `updates.md`: Documented root cause, historical comparison, configuration, validation, and deployment requirements.
 
 ### Verification
 - **Live Deployed Site Inspection**: Fetched and verified `https://yuv9799.github.io/queue-manage/` and assets (`index-B6b2H7mG.js`), confirming the exact failure point in the minified bundle (`Ip = null`).
